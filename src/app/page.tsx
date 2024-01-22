@@ -3,13 +3,13 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import classNames from 'classnames';
 import { Graph } from '@visx/network';
-import {
+import init, {
   Provider,
   BackendBehaviour,
   debug,
+  rings_node,
 } from '@ringsnetwork/rings-node'
-// import init from "@ringsnetwork/rings-node/dist/rings_node"
-import { generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
+import { PrivateKeyAccount, generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 
 function hexToBytes(hex: number | string) {
   hex = hex.toString(16)
@@ -33,6 +33,13 @@ const extension_message_handler = async (ctxRef: any, providerRef: any, msgCtx: 
   console.log(msg)
 }
 
+interface RNode {
+  x: number,
+  y: number,
+  pk: string,
+  account: PrivateKeyAccount,
+  provider: Provider
+}
 
 export default function Home() {
   const [wasm, setWasm] = useState<any>(null)
@@ -42,7 +49,7 @@ export default function Home() {
     if (!wasm) {
       const initWasm = async () => {
         const w = await init()
-        debug(true)
+        // debug(true)
         setWasm(w)
       }
 
@@ -56,15 +63,15 @@ export default function Home() {
     }
     console.log('wasm found')
     
-    const generateNodesOnCircle = async (numberOfNodes: number, radius = 100, centerX = 250, centerY = 250) => {
-      let newNodes:any[] = [];
+    const generateNodesOnCircle = async (numberOfNodes: number, radius = 200, centerX = 250, centerY = 250) => {
+      let newNodes:RNode[] = [];
       for (let i = 0; i < numberOfNodes; i++) {
         const angle = 2 * Math.PI * i / numberOfNodes;
         const x = centerX + radius * Math.cos(angle);
         const y = centerY + radius * Math.sin(angle);
 
-        const privateKey = generatePrivateKey()
-        const account = privateKeyToAccount(privateKey)
+        const pk = generatePrivateKey()
+        const account = privateKeyToAccount(pk)
 
         const signer = async (proof: string): Promise<Uint8Array> => {
             const signed = await account.signMessage({message: proof})
@@ -81,7 +88,7 @@ export default function Home() {
             // ice_servers
             'stun://stun.l.google.com:19302',
             // stable_timeout
-            BigInt(60),
+            BigInt(1),
             // account
             account.address,
             // account type
@@ -94,44 +101,76 @@ export default function Home() {
           await provider.listen()
           if (i > 0) {
             const prevItem = newNodes[i-1];
-            const offer = await prevItem.provider.request("createOffer", [account.address])
-            const answer = await provider.request("answerOffer", [offer.result])
-            await prevItem.provider.request("acceptAnswer", [answer.result])
-            const info = await provider.request("nodeInfo", [])
-            console.log(info)
+            
+            const cor = new rings_node.CreateOfferRequest({did:account.address})
+            const corResponse:rings_node.CreateOfferResponse = await prevItem.provider.request("createOffer", cor)
+
+            const aor = new rings_node.AnswerOfferRequest({offer:corResponse.offer})
+            const aorResponse:rings_node.AnswerOfferResponse = await provider.request("answerOffer", aor)
+            
+            const aar = new rings_node.AcceptAnswerRequest({answer:aorResponse.answer})
+            await prevItem.provider.request("acceptAnswer", aar)
           }
-          newNodes.push({ x, y, account, provider });
+          newNodes.push({ x, y, pk, account, provider });
         }
         await listen()
       }
       setNodes(newNodes)
     }
 
-    generateNodesOnCircle(8);
+    generateNodesOnCircle(16);
   }, [wasm]);
 
   const setupNodes = () => {
 
   }
 
+  // useEffect(() => {
+  //   if (nodes != null) {
+  //     // console.log(nodes)
+  //     const dataSample = {
+  //       nodes,
+  //       links: [
+  //       ],
+  //     };
+  //     setNodesData(dataSample)
+  //   }
+  // }, [nodes]);
+
   useEffect(() => {
-    if (nodes != null) {
-      console.log(nodes)
-      const dataSample = {
-        nodes,
-        links: [
-          { source: nodes[0], target: nodes[1] },
-          { source: nodes[1], target: nodes[2] },
-          { source: nodes[2], target: nodes[0] },
-        ],
-      };
-      setNodesData(dataSample)
-    }
+    const interval = setInterval(async () => {
+      if (nodes != null) {
+        // console.log(nodes);
+        var links:any = []
+        for (let i = 0; i < nodes.length; i++) {
+          const node = nodes[i];
+          const info:rings_node.INodeInfoResponse = await node.provider.request("nodeInfo", [])
+          info.swarm!.peers!.map((peer) => {
+            if (peer.state == "Connected") {
+              var targetNode:RNode|undefined;
+              for (let j = 0; j < nodes.length; j++) {
+                const inode = nodes[j];
+                if (inode.account.address.toLowerCase() == peer.did!.toLowerCase()) {
+                  targetNode = inode;
+                  break
+                }
+              }
+              // console.log(targetNode!.account.address)
+              if (targetNode != null && node != targetNode) {
+                links.push({source: node, target: targetNode})
+              }
+            }
+          })
+        }
+        const newNodesData = {nodes, links}
+        setNodesData(newNodesData)
+      }
+    }, 1000);
+    return () => clearInterval(interval);
   }, [nodes]);
 
   const MyGraph = () => {
     if (nodes != null) {
-      console.log(nodesData)
       return (<svg width="500" height="500"> <Graph graph={nodesData} /></svg>)
     }
     return (<svg width="500" height="500"></svg>)
@@ -139,28 +178,31 @@ export default function Home() {
 
   const InfoTable = () => {
     var nodeElements = [];
-    for (let i = 0; i < nodes.length; i++) {
-      const node = nodes[i];
-      nodeElements.push(<a
-        className={nodeClass}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <h2 className={`mb-3 text-2xl font-semibold`}>
-          Node{" " + i}
-          <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-            -&gt;
-          </span>
-        </h2>
-        <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-          {node.account.address.substring(0,6)}
-        </p>
-      </a>)
+    if (nodes) {
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        nodeElements.push(<a
+          key={node.account.address}
+          className={nodeClass}
+          target="_blank"
+        >
+          <h2 className={`mb-3 text-2xl font-semibold`}>
+            Node{" " + i}
+            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
+              -&gt;
+            </span>
+          </h2>
+          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
+            {node.account.address.substring(0,6)}
+          </p>
+        </a>)
+      }
     }
+    
     return (
       <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
       {nodeElements}
-    </div>
+      </div>
     )
   }
 
@@ -214,7 +256,11 @@ export default function Home() {
         <p className={buttonClass} >3. Run Rings Proof</p>
       </div>
       <InfoTable />
+      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-2 lg:text-left">
       <MyGraph />
+      <textarea className="bg-gradient-to-b from-zinc-200 dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-2 lg:dark:bg-zinc-800/30" 
+      value={nodes ? nodes.map((node: RNode) => node.pk) : ""}></textarea>
+      </div>
     </main>
   );
 }
