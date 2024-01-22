@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import classNames from 'classnames';
-import { Graph } from '@visx/network';
+import { DefaultNode, Graph } from '@visx/network';
 import init, {
   Provider,
   BackendBehaviour,
@@ -39,6 +39,11 @@ interface RNode {
   pk: string,
   account: PrivateKeyAccount,
   provider: Provider
+}
+
+interface RLink {
+  source: RNode;
+  target: RNode;
 }
 
 export default function Home() {
@@ -171,7 +176,13 @@ export default function Home() {
 
   const MyGraph = () => {
     if (nodes != null) {
-      return (<svg width="500" height="500"> <Graph graph={nodesData} /></svg>)
+      return (<svg width="500" height="500">
+        <Graph<RLink, RNode> 
+          graph={nodesData}
+          nodeComponent={({ node }) =>
+          <DefaultNode onClick={() => console.log(node)} />
+        }/>
+        </svg>)
     }
     return (<svg width="500" height="500"></svg>)
   };
