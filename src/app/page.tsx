@@ -70,12 +70,25 @@ export default function Home() {
     
     const generateNodesOnCircle = async (numberOfNodes: number, radius = 200, centerX = 250, centerY = 250) => {
       let newNodes:RNode[] = [];
+      let pks:`0x${string}`[] = []
+      for (let i = 0; i < numberOfNodes; i++) {
+        const pk = generatePrivateKey()
+        pks.push(pk)
+      }
+      pks.sort((a, b) => {
+        const aAddr = privateKeyToAccount(a).address.toLowerCase()
+        const bAddr = privateKeyToAccount(b).address.toLowerCase()
+        if(aAddr > bAddr) return -1;
+        if(aAddr < bAddr) return 1;
+        return 0;
+      });
+      // pks.reverse() // bad case
       for (let i = 0; i < numberOfNodes; i++) {
         const angle = 2 * Math.PI * i / numberOfNodes;
         const x = centerX + radius * Math.cos(angle);
         const y = centerY + radius * Math.sin(angle);
 
-        const pk = generatePrivateKey()
+        const pk = pks[i]
         const account = privateKeyToAccount(pk)
 
         const signer = async (proof: string): Promise<Uint8Array> => {
