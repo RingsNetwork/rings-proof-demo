@@ -14,21 +14,21 @@ import { PrivateKeyAccount, generatePrivateKey, privateKeyToAccount } from 'viem
 function hexToBytes(hex: number | string) {
   hex = hex.toString(16)
   hex = hex.replace(/^0x/i, '')
-  for (var bytes : number[] = [], c = 0; c < hex.length; c += 2) bytes.push(parseInt(hex.slice(c, c + 2), 16))
+  for (var bytes: number[] = [], c = 0; c < hex.length; c += 2) bytes.push(parseInt(hex.slice(c, c + 2), 16))
   return bytes
 }
 
-const service_message_handler = async (ctxRef: any, providerRef: any, msgCtx: any, msg: any) => { 
+const service_message_handler = async (ctxRef: any, providerRef: any, msgCtx: any, msg: any) => {
   console.log('service_message_handler')
   console.log(msg)
 }
 
-const plain_text_message_handler = async (ctxRef: any, providerRef: any, msgCtx: any, msg: any) => { 
+const plain_text_message_handler = async (ctxRef: any, providerRef: any, msgCtx: any, msg: any) => {
   console.log('plain_text_message_handler')
   console.log(msg)
 }
 
-const extension_message_handler = async (ctxRef: any, providerRef: any, msgCtx: any, msg: any) => { 
+const extension_message_handler = async (ctxRef: any, providerRef: any, msgCtx: any, msg: any) => {
   console.log('extension_message_handler')
   console.log(msg)
 }
@@ -67,10 +67,10 @@ export default function Home() {
       return
     }
     console.log('wasm found')
-    
+
     const generateNodesOnCircle = async (numberOfNodes: number, radius = 200, centerX = 250, centerY = 250) => {
-      let newNodes:RNode[] = [];
-      let pks:`0x${string}`[] = []
+      let newNodes: RNode[] = [];
+      let pks: `0x${string}`[] = []
       for (let i = 0; i < numberOfNodes; i++) {
         const pk = generatePrivateKey()
         pks.push(pk)
@@ -78,8 +78,8 @@ export default function Home() {
       pks.sort((a, b) => {
         const aAddr = privateKeyToAccount(a).address.toLowerCase()
         const bAddr = privateKeyToAccount(b).address.toLowerCase()
-        if(aAddr > bAddr) return -1;
-        if(aAddr < bAddr) return 1;
+        if (aAddr > bAddr) return -1;
+        if (aAddr < bAddr) return 1;
         return 0;
       });
       // pks.reverse() // bad case
@@ -92,8 +92,8 @@ export default function Home() {
         const account = privateKeyToAccount(pk)
 
         const signer = async (proof: string): Promise<Uint8Array> => {
-            const signed = await account.signMessage({message: proof})
-            return new Uint8Array(hexToBytes(signed!));
+          const signed = await account.signMessage({ message: proof })
+          return new Uint8Array(hexToBytes(signed!));
         }
 
         const listen = async () => {
@@ -118,15 +118,15 @@ export default function Home() {
           )
           await provider.listen()
           if (i > 0) {
-            const prevItem = newNodes[i-1];
-            
-            const cor = new rings_node.CreateOfferRequest({did:account.address})
-            const corResponse:rings_node.CreateOfferResponse = await prevItem.provider.request("createOffer", cor)
+            const prevItem = newNodes[i - 1];
 
-            const aor = new rings_node.AnswerOfferRequest({offer:corResponse.offer})
-            const aorResponse:rings_node.AnswerOfferResponse = await provider.request("answerOffer", aor)
-            
-            const aar = new rings_node.AcceptAnswerRequest({answer:aorResponse.answer})
+            const cor = new rings_node.CreateOfferRequest({ did: account.address })
+            const corResponse: rings_node.CreateOfferResponse = await prevItem.provider.request("createOffer", cor)
+
+            const aor = new rings_node.AnswerOfferRequest({ offer: corResponse.offer })
+            const aorResponse: rings_node.AnswerOfferResponse = await provider.request("answerOffer", aor)
+
+            const aar = new rings_node.AcceptAnswerRequest({ answer: aorResponse.answer })
             await prevItem.provider.request("acceptAnswer", aar)
           }
           newNodes.push({ x, y, pk, account, provider });
@@ -159,13 +159,13 @@ export default function Home() {
     const interval = setInterval(async () => {
       if (nodes != null) {
         // console.log(nodes);
-        var links:any = []
+        var links: any = []
         for (let i = 0; i < nodes.length; i++) {
           const node = nodes[i];
-          const info:rings_node.INodeInfoResponse = await node.provider.request("nodeInfo", [])
+          const info: rings_node.INodeInfoResponse = await node.provider.request("nodeInfo", [])
           info.swarm!.peers!.map((peer) => {
             if (peer.state == "Connected") {
-              var targetNode:RNode|undefined;
+              var targetNode: RNode | undefined;
               for (let j = 0; j < nodes.length; j++) {
                 const inode = nodes[j];
                 if (inode.account.address.toLowerCase() == peer.did!.toLowerCase()) {
@@ -175,12 +175,12 @@ export default function Home() {
               }
               // console.log(targetNode!.account.address)
               if (targetNode != null && node != targetNode) {
-                links.push({source: node, target: targetNode})
+                links.push({ source: node, target: targetNode })
               }
             }
           })
         }
-        const newNodesData = {nodes, links}
+        const newNodesData = { nodes, links }
         setNodesData(newNodesData)
       }
     }, 1000);
@@ -190,12 +190,12 @@ export default function Home() {
   const MyGraph = () => {
     if (nodes != null) {
       return (<svg width="500" height="500">
-        <Graph<RLink, RNode> 
+        <Graph<RLink, RNode>
           graph={nodesData}
           nodeComponent={({ node }) =>
-          <DefaultNode onClick={() => console.log(node)} />
-        }/>
-        </svg>)
+            <DefaultNode onClick={() => console.log(node)} />
+          } />
+      </svg>)
     }
     return (<svg width="500" height="500"></svg>)
   };
@@ -217,15 +217,15 @@ export default function Home() {
             </span>
           </h2>
           <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            {node.account.address.substring(0,6)}
+            {node.account.address.substring(0, 6)}
           </p>
         </a>)
       }
     }
-    
+
     return (
       <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-      {nodeElements}
+        {nodeElements}
       </div>
     )
   }
@@ -245,7 +245,7 @@ export default function Home() {
   const nodeClass = classNames(
     "group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
   )
-  
+
 
   return (
     <main className="flex min-h-screen flex-col items-center p-24">
@@ -281,9 +281,9 @@ export default function Home() {
       </div>
       <InfoTable />
       <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-2 lg:text-left">
-      <MyGraph />
-      <textarea className="bg-gradient-to-b from-zinc-200 dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-2 lg:dark:bg-zinc-800/30" 
-      value={nodes ? nodes.map((node: RNode) => node.pk) : ""}></textarea>
+        <MyGraph />
+        <textarea className="bg-gradient-to-b from-zinc-200 dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-2 lg:dark:bg-zinc-800/30"
+          value={nodes ? nodes.map((node: RNode) => node.pk) : ""} readOnly></textarea>
       </div>
     </main>
   );
