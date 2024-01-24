@@ -50,6 +50,7 @@ export default function Home() {
   const [wasm, setWasm] = useState<any>(null)
   const [nodes, setNodes] = useState<any>(null)
   const [nodesData, setNodesData] = useState<any>(null)
+  const [textareaValue, setTextareaValue] = useState<any>("");
   useEffect(() => {
     if (!wasm) {
       const initWasm = async () => {
@@ -67,93 +68,89 @@ export default function Home() {
       return
     }
     console.log('wasm found')
+  }, [wasm])
 
-    const generateNodesOnCircle = async (numberOfNodes: number, radius = 200, centerX = 250, centerY = 250) => {
-      let newNodes: RNode[] = [];
-      let pks: `0x${string}`[] = []
-      for (let i = 0; i < numberOfNodes; i++) {
-        const pk = generatePrivateKey()
-        pks.push(pk)
-      }
-      pks.sort((a, b) => {
-        const aAddr = privateKeyToAccount(a).address.toLowerCase()
-        const bAddr = privateKeyToAccount(b).address.toLowerCase()
-        if (aAddr > bAddr) return -1;
-        if (aAddr < bAddr) return 1;
-        return 0;
-      });
-      // pks.reverse() // bad case
-      for (let i = 0; i < numberOfNodes; i++) {
-        const angle = 2 * Math.PI * i / numberOfNodes;
-        const x = centerX + radius * Math.cos(angle);
-        const y = centerY + radius * Math.sin(angle);
-
-        const pk = pks[i]
-        const account = privateKeyToAccount(pk)
-
-        const signer = async (proof: string): Promise<Uint8Array> => {
-          const signed = await account.signMessage({ message: proof })
-          return new Uint8Array(hexToBytes(signed!));
-        }
-
-        const listen = async () => {
-          const context = new BackendBehaviour(
-            service_message_handler,
-            plain_text_message_handler,
-            extension_message_handler
-          )
-          let provider: Provider = await new Provider(
-            // ice_servers
-            'stun://stun.l.google.com:19302',
-            // stable_timeout
-            BigInt(1),
-            // account
-            account.address,
-            // account type
-            "eip191",
-            // signer
-            signer,
-            // callback
-            context
-          )
-          await provider.listen()
-          if (i > 0) {
-            const prevItem = newNodes[i - 1];
-
-            const cor = new rings_node.CreateOfferRequest({ did: account.address })
-            const corResponse: rings_node.CreateOfferResponse = await prevItem.provider.request("createOffer", cor)
-
-            const aor = new rings_node.AnswerOfferRequest({ offer: corResponse.offer })
-            const aorResponse: rings_node.AnswerOfferResponse = await provider.request("answerOffer", aor)
-
-            const aar = new rings_node.AcceptAnswerRequest({ answer: aorResponse.answer })
-            await prevItem.provider.request("acceptAnswer", aar)
-          }
-          newNodes.push({ x, y, pk, account, provider });
-        }
-        await listen()
-      }
-      setNodes(newNodes)
+  const generatePrivateKeys = (numberOfNodes: number) => {
+    let pks: `0x${string}`[] = []
+    for (let i = 0; i < numberOfNodes; i++) {
+      const pk = generatePrivateKey()
+      pks.push(pk)
     }
+    pks.sort((a, b) => {
+      const aAddr = privateKeyToAccount(a).address.toLowerCase()
+      const bAddr = privateKeyToAccount(b).address.toLowerCase()
+      if (aAddr > bAddr) return -1;
+      if (aAddr < bAddr) return 1;
+      return 0;
+    });
+    // pks.reverse() // bad case
 
-    generateNodesOnCircle(16);
-  }, [wasm]);
-
-  const setupNodes = () => {
-
+    let value = pks?.join("\n")
+    setTextareaValue(value)
   }
 
-  // useEffect(() => {
-  //   if (nodes != null) {
-  //     // console.log(nodes)
-  //     const dataSample = {
-  //       nodes,
-  //       links: [
-  //       ],
-  //     };
-  //     setNodesData(dataSample)
-  //   }
-  // }, [nodes]);
+  const setsetNodesFun = async (pks: `0x${string}`[], radius = 200, centerX = 250, centerY = 250) => {
+    let newNodes: RNode[] = [];
+    let numberOfNodes = pks.length
+    for (let i = 0; i < numberOfNodes; i++) {
+      const angle = 2 * Math.PI * i / numberOfNodes;
+      const x = centerX + radius * Math.cos(angle);
+      const y = centerY + radius * Math.sin(angle);
+
+      const pk = pks[i]
+      const account = privateKeyToAccount(pk)
+
+      const signer = async (proof: string): Promise<Uint8Array> => {
+        const signed = await account.signMessage({ message: proof })
+        return new Uint8Array(hexToBytes(signed!));
+      }
+
+      const listen = async () => {
+        const context = new BackendBehaviour(
+          service_message_handler,
+          plain_text_message_handler,
+          extension_message_handler
+        )
+        let provider: Provider = await new Provider(
+          // ice_servers
+          'stun://stun.l.google.com:19302',
+          // stable_timeout
+          BigInt(1),
+          // account
+          account.address,
+          // account type
+          "eip191",
+          // signer
+          signer,
+          // callback
+          context
+        )
+        await provider.listen()
+        if (i > 0) {
+          const prevItem = newNodes[i - 1];
+
+          const cor = new rings_node.CreateOfferRequest({ did: account.address })
+          const corResponse: rings_node.CreateOfferResponse = await prevItem.provider.request("createOffer", cor)
+
+          const aor = new rings_node.AnswerOfferRequest({ offer: corResponse.offer })
+          const aorResponse: rings_node.AnswerOfferResponse = await provider.request("answerOffer", aor)
+
+          const aar = new rings_node.AcceptAnswerRequest({ answer: aorResponse.answer })
+          await prevItem.provider.request("acceptAnswer", aar)
+        }
+        newNodes.push({ x, y, pk, account, provider });
+      }
+      await listen()
+    }
+    setNodes(newNodes)
+    let value = pks?.join("\n")
+    setTextareaValue(value)
+  };
+
+  const generateNodesOnCircle = async () => {
+    let pks = textareaValue.split("\n")
+    await setsetNodesFun(pks)
+  };
 
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -218,8 +215,8 @@ export default function Home() {
           </h2>
           <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
             {node.account.address.substring(0, 6)}
-          </p>
-        </a>)
+          </p >
+        </a >)
       }
     }
 
@@ -252,8 +249,8 @@ export default function Home() {
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
         <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
           Decentralized Proof Demo&nbsp;
-          <a href="https://github.com/RingsNetwork/rings-proof-demo" target="_blank"><code className="font-mono font-bold">[Source Code]</code></a>
-        </p>
+          <a href=" " target="_blank"><code className="font-mono font-bold">[Source Code]</code></a >
+        </p >
         <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
           <a
             className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
@@ -270,21 +267,23 @@ export default function Home() {
               height={24}
               priority
             />
-          </a>
+          </a >
         </div>
       </div>
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className={buttonClass} onClick={setupNodes}>1. Start 8 rings node</p>
-        <p className={buttonClass} >2. Connect them to a local network</p>
-        <p className={buttonClass} >3. Run a proof job on 1 node</p>
-        <p className={buttonClass} >3. Run Rings Proof</p>
+        <p className={buttonClass} >1. Start 8 rings node</p >
+        <p className={buttonClass} >2. Connect them to a local network</p >
+        <p className={buttonClass} >3. Run a proof job on 1 node</p >
+        <p className={buttonClass} >4. Run Rings Proof</p >
       </div>
       <InfoTable />
       <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-2 lg:text-left">
         <MyGraph />
         <textarea className="bg-gradient-to-b from-zinc-200 dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-2 lg:dark:bg-zinc-800/30"
-          value={nodes ? nodes.map((node: RNode) => node.pk) : ""} readOnly></textarea>
+          defaultValue={textareaValue} onChange={(ev) => setTextareaValue(ev.target.value)}></textarea>
       </div>
+      <button onClick={() => generatePrivateKeys(16)} className="mt-12 text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-2 lg:text-right">Generate random keys</button>
+      <button onClick={async () => await generateNodesOnCircle()} className="mt-12 text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-2 lg:text-right">Connect nodes</button>
     </main>
   );
 }
