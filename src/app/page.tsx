@@ -8,6 +8,10 @@ import init, {
   BackendBehaviour,
   debug,
   rings_node,
+  SNARKTaskBuilder,
+  SNARKBehaviour,
+  SupportedPrimeField,
+  Input
 } from '@ringsnetwork/rings-node'
 import { PrivateKeyAccount, generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
 
@@ -18,17 +22,17 @@ function hexToBytes(hex: number | string) {
   return bytes
 }
 
-const service_message_handler = async (ctxRef: any, providerRef: any, msgCtx: any, msg: any) => { 
+const service_message_handler = async (ctxRef: any, providerRef: any, msgCtx: any, msg: any) => {
   console.log('service_message_handler')
   console.log(msg)
 }
 
-const plain_text_message_handler = async (ctxRef: any, providerRef: any, msgCtx: any, msg: any) => { 
+const plain_text_message_handler = async (ctxRef: any, providerRef: any, msgCtx: any, msg: any) => {
   console.log('plain_text_message_handler')
   console.log(msg)
 }
 
-const extension_message_handler = async (ctxRef: any, providerRef: any, msgCtx: any, msg: any) => { 
+const extension_message_handler = async (ctxRef: any, providerRef: any, msgCtx: any, msg: any) => {
   console.log('extension_message_handler')
   console.log(msg)
 }
@@ -67,7 +71,7 @@ export default function Home() {
       return
     }
     console.log('wasm found')
-    
+
     const generateNodesOnCircle = async (numberOfNodes: number, radius = 200, centerX = 250, centerY = 250) => {
       let newNodes:RNode[] = [];
       let pks:`0x${string}`[] = []
@@ -82,7 +86,7 @@ export default function Home() {
         if(aAddr < bAddr) return 1;
         return 0;
       });
-      // pks.reverse() // bad case
+      /* pks.reverse() // bad case */
       for (let i = 0; i < numberOfNodes; i++) {
         const angle = 2 * Math.PI * i / numberOfNodes;
         const x = centerX + radius * Math.cos(angle);
@@ -90,17 +94,83 @@ export default function Home() {
 
         const pk = pks[i]
         const account = privateKeyToAccount(pk)
-
         const signer = async (proof: string): Promise<Uint8Array> => {
             const signed = await account.signMessage({message: proof})
             return new Uint8Array(hexToBytes(signed!));
         }
 
         const listen = async () => {
+	  const F = SupportedPrimeField.Pallas
+	  console.log("loading r1cs and wasm START")
+	  const snark_task_builder = await new SNARKTaskBuilder(
+	    "http://localhost:3000/merkle_tree.r1cs",
+	    "http://localhost:3000/merkle_tree.wasm",
+	    F
+	  )
+	  const snark_backend = new SNARKBehaviour()
+	  console.log("backend", snark_backend)
+	  console.log("loading r1cs and wasm DONE")
+	  /// Root of merkle tree
+	  console.log("init input START")
+	  const publicInputData = [["foo", [BigInt(42)]]]
+	  const input = Input.from_array(publicInputData, F)
+	  /// Path of merkle tree, path[0]: leaf, path[1]: position (left or right)
+	  const privateInput = [
+	    [["path", [BigInt(123456), BigInt(0)]]],
+	    [["path", [BigInt(33), BigInt(1)]]],
+	    [["path", [BigInt(3333), BigInt(0)]]],
+	    [["path", [BigInt(31), BigInt(1)]]],
+	    [["path", [BigInt(4), BigInt(1)]]],
+	    [["path", [BigInt(41123), BigInt(0)]]],
+	    [["path", [BigInt(123), BigInt(1)]]],
+	    [["path", [BigInt(123122), BigInt(0)]]],
+	    [["path", [BigInt(222123), BigInt(1)]]],
+	    [["path", [BigInt(3331), BigInt(1)]]],
+	    [["path", [BigInt(41123), BigInt(0)]]],
+	    [["path", [BigInt(331), BigInt(1)]]],
+	    [["path", [BigInt(2131), BigInt(0)]]],
+	    [["path", [BigInt(412312), BigInt(0)]]],
+	    [["path", [BigInt(10086), BigInt(1)]]],
+	    [["path", [BigInt(41123), BigInt(0)]]],
+	    [["path", [BigInt(123), BigInt(1)]]],
+	    [["path", [BigInt(123122), BigInt(0)]]],
+	    [["path", [BigInt(222123), BigInt(1)]]],
+	    [["path", [BigInt(41123), BigInt(0)]]],
+	    [["path", [BigInt(123), BigInt(1)]]],
+	    [["path", [BigInt(123122), BigInt(0)]]],
+	    [["path", [BigInt(222123), BigInt(1)]]],
+	    [["path", [BigInt(3331), BigInt(1)]]],
+	    [["path", [BigInt(41123), BigInt(0)]]],
+	    [["path", [BigInt(123), BigInt(1)]]],
+	    [["path", [BigInt(123122), BigInt(0)]]],
+	    [["path", [BigInt(222123), BigInt(1)]]],
+	    [["path", [BigInt(3331), BigInt(1)]]],
+	    [["path", [BigInt(41123), BigInt(0)]]],
+	    [["path", [BigInt(331), BigInt(1)]]],
+	    [["path", [BigInt(2131), BigInt(0)]]],
+	    [["path", [BigInt(412312), BigInt(0)]]],
+	    [["path", [BigInt(4), BigInt(1)]]],
+	    [["path", [BigInt(41123), BigInt(0)]]],
+	    [["path", [BigInt(123), BigInt(1)]]],
+	    [["path", [BigInt(123122), BigInt(0)]]],
+	    [["path", [BigInt(222123), BigInt(1)]]],
+	    [["path", [BigInt(41123), BigInt(0)]]],
+	  ].map((input)=>Input.from_array(input, F))
+	  console.log("init input DONE")
+
+	  console.log("gen circuit START")
+	  console.log(privateInput)
+	  const circuits = snark_task_builder.gen_circuits(
+	    input, privateInput, privateInput.length
+	  )
+	  console.log("gen circuit DONE")
+
+
           const context = new BackendBehaviour(
             service_message_handler,
             plain_text_message_handler,
-            extension_message_handler
+            extension_message_handler,
+	    snark_backend.clone()
           )
           let provider: Provider = await new Provider(
             // ice_servers
@@ -117,15 +187,22 @@ export default function Home() {
             context
           )
           await provider.listen()
+	  console.log(provider, circuits, account.address, snark_backend, snark_task_builder)
+	  await snark_backend.send_proof_task_to(
+	    provider,
+	    circuits,
+	    account.address
+	  )
+
           if (i > 0) {
             const prevItem = newNodes[i-1];
-            
+
             const cor = new rings_node.CreateOfferRequest({did:account.address})
             const corResponse:rings_node.CreateOfferResponse = await prevItem.provider.request("createOffer", cor)
 
             const aor = new rings_node.AnswerOfferRequest({offer:corResponse.offer})
             const aorResponse:rings_node.AnswerOfferResponse = await provider.request("answerOffer", aor)
-            
+
             const aar = new rings_node.AcceptAnswerRequest({answer:aorResponse.answer})
             await prevItem.provider.request("acceptAnswer", aar)
           }
@@ -190,7 +267,7 @@ export default function Home() {
   const MyGraph = () => {
     if (nodes != null) {
       return (<svg width="500" height="500">
-        <Graph<RLink, RNode> 
+        <Graph<RLink, RNode>
           graph={nodesData}
           nodeComponent={({ node }) =>
           <DefaultNode onClick={() => console.log(node)} />
@@ -222,7 +299,7 @@ export default function Home() {
         </a>)
       }
     }
-    
+
     return (
       <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
       {nodeElements}
@@ -245,7 +322,7 @@ export default function Home() {
   const nodeClass = classNames(
     "group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
   )
-  
+
 
   return (
     <main className="flex min-h-screen flex-col items-center p-24">
@@ -282,7 +359,7 @@ export default function Home() {
       <InfoTable />
       <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-2 lg:text-left">
       <MyGraph />
-      <textarea className="bg-gradient-to-b from-zinc-200 dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-2 lg:dark:bg-zinc-800/30" 
+      <textarea className="bg-gradient-to-b from-zinc-200 dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-2 lg:dark:bg-zinc-800/30"
       value={nodes ? nodes.map((node: RNode) => node.pk) : ""}></textarea>
       </div>
     </main>
