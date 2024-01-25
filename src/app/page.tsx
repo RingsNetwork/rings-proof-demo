@@ -51,6 +51,10 @@ export default function Home() {
   const [nodes, setNodes] = useState<any>(null)
   const [nodesData, setNodesData] = useState<any>(null)
   const [textareaValue, setTextareaValue] = useState<any>("");
+
+  // Set nodes to window for debugging.
+  window.nodes = () => nodes;
+
   useEffect(() => {
     if (!wasm) {
       const initWasm = async () => {
