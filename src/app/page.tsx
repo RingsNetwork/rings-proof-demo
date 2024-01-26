@@ -187,7 +187,7 @@ export default function Home() {
     console.log("gen circuit START")
     console.log(privateInput)
     const circuits = snarkTaskBuilder.gen_circuits(
-      input, privateInput, privateInput.length
+      input, privateInput, 6
     )
     console.log("gen circuit DONE")
     console.log("gen task")
