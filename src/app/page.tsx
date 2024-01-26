@@ -102,6 +102,7 @@ export default function Home() {
 
         const listen = async () => {
 	  const snark = new SNARKBehaviour()
+	  console.log(snark)
           const context = new BackendBehaviour(
             service_message_handler,
             plain_text_message_handler,
@@ -159,7 +160,6 @@ export default function Home() {
   }
 
   const singleProof = async () => {
-    let snarkBackend = nodes[0].snark
     console.log(nodes[0])
     const F = SupportedPrimeField.Pallas
     console.log("loading r1cs and wasm START")
@@ -191,14 +191,15 @@ export default function Home() {
     )
     console.log("gen circuit DONE")
     console.log("gen task")
-    const task = snarkBackend.gen_proof_task_ref(circuits)
+    const task = SNARKBehaviour.gen_proof_task_ref(circuits)
     console.log("gen task DONE")
     console.log("gen proof")
-    const proof = snarkBackend.handle_snark_proof_task_ref(task)
+    console.log(task)
+    const proof = SNARKBehaviour.handle_snark_proof_task_ref(task.clone())
     console.log("gen proof DONE")
     console.log("verify")
-    snarkBackend.handle_snark_verify_task_ref(task, proof)
-    console.log("verify DONE")
+    let ret = SNARKBehaviour.handle_snark_verify_task_ref(proof.clone(), task.clone())
+    console.log("verify DONE", ret)
   }
 
   const ringsProof = async () => {
@@ -236,7 +237,7 @@ export default function Home() {
       console.log("gen circuit START")
       console.log(privateInput)
       const circuits = snarkTaskBuilder.gen_circuits(
-	input, privateInput, privateInput.length
+	input, privateInput, 6
       )
       console.log("gen circuit DONE")
       console.log("gen task")
