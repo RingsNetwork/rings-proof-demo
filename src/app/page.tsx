@@ -42,7 +42,8 @@ interface RNode {
   y: number,
   pk: string,
   account: PrivateKeyAccount,
-  provider: Provider
+  provider: Provider,
+  snark: SNARKBehaviour,
 }
 
 interface RLink {
@@ -58,7 +59,7 @@ export default function Home() {
     if (!wasm) {
       const initWasm = async () => {
         const w = await init()
-        // debug(true)
+//        debug(true)
         setWasm(w)
       }
 
@@ -100,77 +101,12 @@ export default function Home() {
         }
 
         const listen = async () => {
-	  const F = SupportedPrimeField.Pallas
-	  console.log("loading r1cs and wasm START")
-	  const snark_task_builder = await new SNARKTaskBuilder(
-	    "http://localhost:3000/merkle_tree.r1cs",
-	    "http://localhost:3000/merkle_tree.wasm",
-	    F
-	  )
-	  const snark_backend = new SNARKBehaviour()
-	  console.log("backend", snark_backend)
-	  console.log("loading r1cs and wasm DONE")
-	  /// Root of merkle tree
-	  console.log("init input START")
-	  const publicInputData = [["foo", [BigInt(42)]]]
-	  const input = Input.from_array(publicInputData, F)
-	  /// Path of merkle tree, path[0]: leaf, path[1]: position (left or right)
-	  const privateInput = [
-	    [["path", [BigInt(123456), BigInt(0)]]],
-	    [["path", [BigInt(33), BigInt(1)]]],
-	    [["path", [BigInt(3333), BigInt(0)]]],
-	    [["path", [BigInt(31), BigInt(1)]]],
-	    [["path", [BigInt(4), BigInt(1)]]],
-	    [["path", [BigInt(41123), BigInt(0)]]],
-	    [["path", [BigInt(123), BigInt(1)]]],
-	    [["path", [BigInt(123122), BigInt(0)]]],
-	    [["path", [BigInt(222123), BigInt(1)]]],
-	    [["path", [BigInt(3331), BigInt(1)]]],
-	    [["path", [BigInt(41123), BigInt(0)]]],
-	    [["path", [BigInt(331), BigInt(1)]]],
-	    [["path", [BigInt(2131), BigInt(0)]]],
-	    [["path", [BigInt(412312), BigInt(0)]]],
-	    [["path", [BigInt(10086), BigInt(1)]]],
-	    [["path", [BigInt(41123), BigInt(0)]]],
-	    [["path", [BigInt(123), BigInt(1)]]],
-	    [["path", [BigInt(123122), BigInt(0)]]],
-	    [["path", [BigInt(222123), BigInt(1)]]],
-	    [["path", [BigInt(41123), BigInt(0)]]],
-	    [["path", [BigInt(123), BigInt(1)]]],
-	    [["path", [BigInt(123122), BigInt(0)]]],
-	    [["path", [BigInt(222123), BigInt(1)]]],
-	    [["path", [BigInt(3331), BigInt(1)]]],
-	    [["path", [BigInt(41123), BigInt(0)]]],
-	    [["path", [BigInt(123), BigInt(1)]]],
-	    [["path", [BigInt(123122), BigInt(0)]]],
-	    [["path", [BigInt(222123), BigInt(1)]]],
-	    [["path", [BigInt(3331), BigInt(1)]]],
-	    [["path", [BigInt(41123), BigInt(0)]]],
-	    [["path", [BigInt(331), BigInt(1)]]],
-	    [["path", [BigInt(2131), BigInt(0)]]],
-	    [["path", [BigInt(412312), BigInt(0)]]],
-	    [["path", [BigInt(4), BigInt(1)]]],
-	    [["path", [BigInt(41123), BigInt(0)]]],
-	    [["path", [BigInt(123), BigInt(1)]]],
-	    [["path", [BigInt(123122), BigInt(0)]]],
-	    [["path", [BigInt(222123), BigInt(1)]]],
-	    [["path", [BigInt(41123), BigInt(0)]]],
-	  ].map((input)=>Input.from_array(input, F))
-	  console.log("init input DONE")
-
-	  console.log("gen circuit START")
-	  console.log(privateInput)
-	  const circuits = snark_task_builder.gen_circuits(
-	    input, privateInput, privateInput.length
-	  )
-	  console.log("gen circuit DONE")
-
-
+	  const snark = new SNARKBehaviour()
           const context = new BackendBehaviour(
             service_message_handler,
             plain_text_message_handler,
             extension_message_handler,
-	    snark_backend.clone()
+	    snark.clone()
           )
           let provider: Provider = await new Provider(
             // ice_servers
@@ -187,13 +123,15 @@ export default function Home() {
             context
           )
           await provider.listen()
-	  console.log(provider, circuits, account.address, snark_backend, snark_task_builder)
-	  await snark_backend.send_proof_task_to(
-	    provider,
-	    circuits,
-	    account.address
-	  )
-
+	  /* console.log(provider, circuits, account.address, snark_backend, snark_task_builder)
+	     console.log("start send proof task to self")
+	     await snark_backend.send_proof_task_to(
+	     provider,
+	     circuits,
+	     account.address
+	     )
+	     console.log("end send proof task")
+	   */
           if (i > 0) {
             const prevItem = newNodes[i-1];
 
@@ -206,7 +144,7 @@ export default function Home() {
             const aar = new rings_node.AcceptAnswerRequest({answer:aorResponse.answer})
             await prevItem.provider.request("acceptAnswer", aar)
           }
-          newNodes.push({ x, y, pk, account, provider });
+          newNodes.push({ x, y, pk, account, provider, snark });
         }
         await listen()
       }
@@ -217,6 +155,97 @@ export default function Home() {
   }, [wasm]);
 
   const setupNodes = () => {
+
+  }
+
+  const singleProof = async () => {
+    let snarkBackend = nodes[0].snark
+    console.log(nodes[0])
+    const F = SupportedPrimeField.Pallas
+    console.log("loading r1cs and wasm START")
+    const snarkTaskBuilder = await new SNARKTaskBuilder(
+      "http://localhost:3000/merkle_tree.r1cs",
+      "http://localhost:3000/merkle_tree.wasm",
+      F
+    )
+    console.log("loading r1cs and wasm DONE")
+    /// Root of merkle tree
+    console.log("init input START")
+    const publicInputData = [["leaf", [BigInt(42)]]]
+    const input = Input.from_array(publicInputData, F)
+    /// Path of merkle tree, path[0]: leaf, path[1]: position (left or right)
+    const privateInput = [
+      [["path", [BigInt(123456), BigInt(0)]]],
+      [["path", [BigInt(33), BigInt(1)]]],
+      [["path", [BigInt(3333), BigInt(0)]]],
+      [["path", [BigInt(31), BigInt(1)]]],
+      [["path", [BigInt(4), BigInt(1)]]],
+      [["path", [BigInt(41123), BigInt(0)]]],
+    ].map((input)=>Input.from_array(input, F))
+    console.log("init input DONE")
+
+    console.log("gen circuit START")
+    console.log(privateInput)
+    const circuits = snarkTaskBuilder.gen_circuits(
+      input, privateInput, privateInput.length
+    )
+    console.log("gen circuit DONE")
+    console.log("gen task")
+    const task = snarkBackend.gen_proof_task_ref(circuits)
+    console.log("gen task DONE")
+    console.log("gen proof")
+    const proof = snarkBackend.handle_snark_proof_task_ref(task)
+    console.log("gen proof DONE")
+    console.log("verify")
+    snarkBackend.handle_snark_verify_task_ref(task, proof)
+    console.log("verify DONE")
+  }
+
+  const ringsProof = async () => {
+    for (let i = 0; i < numberOfNodes; i++) {
+      if (i == numberOfNodes - 1) {
+	did = nodes[0].account.address
+      } else {
+	did = node[i+1].account.address
+      }
+      let snarkBackend = nodes[i].snark
+      console.log(nodes[i])
+      const F = SupportedPrimeField.Pallas
+      console.log("loading r1cs and wasm START")
+      const snarkTaskBuilder = await new SNARKTaskBuilder(
+	"http://localhost:3000/merkle_tree.r1cs",
+	"http://localhost:3000/merkle_tree.wasm",
+	F
+      )
+      console.log("loading r1cs and wasm DONE")
+      /// Root of merkle tree
+      console.log("init input START")
+      const publicInputData = [["leaf", [BigInt(42)]]]
+      const input = Input.from_array(publicInputData, F)
+      /// Path of merkle tree, path[0]: leaf, path[1]: position (left or right)
+      const privateInput = [
+	[["path", [BigInt(123456), BigInt(0)]]],
+	[["path", [BigInt(33), BigInt(1)]]],
+	[["path", [BigInt(3333), BigInt(0)]]],
+	[["path", [BigInt(31), BigInt(1)]]],
+	[["path", [BigInt(4), BigInt(1)]]],
+	[["path", [BigInt(41123), BigInt(0)]]],
+      ].map((input)=>Input.from_array(input, F))
+      console.log("init input DONE")
+
+      console.log("gen circuit START")
+      console.log(privateInput)
+      const circuits = snarkTaskBuilder.gen_circuits(
+	input, privateInput, privateInput.length
+      )
+      console.log("gen circuit DONE")
+      console.log("gen task")
+      await snark_backend.send_proof_task_to(
+	node[i].provider,
+	circuits,
+	did
+      )
+    }
 
   }
 
@@ -353,8 +382,8 @@ export default function Home() {
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
         <p className={buttonClass} onClick={setupNodes}>1. Start 8 rings node</p>
         <p className={buttonClass} >2. Connect them to a local network</p>
-        <p className={buttonClass} >3. Run a proof job on 1 node</p>
-        <p className={buttonClass} >3. Run Rings Proof</p>
+        <p className={buttonClass} onClick={singleProof}> 3. Run a proof job on 1 node</p>
+        <p className={buttonClass} onClick={ringsProof}> 4. Run Rings Proof</p>
       </div>
       <InfoTable />
       <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-2 lg:text-left">
