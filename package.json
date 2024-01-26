@@ -9,7 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@ringsnetwork/rings-node": "git+file:../rings-node#47af3d4",
+    "@ringsnetwork/rings-node": "git+file:../rings-node#ed639c3",
     "@visx/network": "^3.3.0",
     "classnames": "^2.5.1",
     "next": "14.1.0",
