@@ -18,7 +18,7 @@ import { PrivateKeyAccount, generatePrivateKey, privateKeyToAccount } from 'viem
 function hexToBytes(hex: number | string) {
   hex = hex.toString(16)
   hex = hex.replace(/^0x/i, '')
-  for (var bytes : number[] = [], c = 0; c < hex.length; c += 2) bytes.push(parseInt(hex.slice(c, c + 2), 16))
+  for (var bytes: number[] = [], c = 0; c < hex.length; c += 2) bytes.push(parseInt(hex.slice(c, c + 2), 16))
   return bytes
 }
 
@@ -59,7 +59,7 @@ export default function Home() {
     if (!wasm) {
       const initWasm = async () => {
         const w = await init()
-//        debug(true)
+        //        debug(true)
         setWasm(w)
       }
 
@@ -74,8 +74,8 @@ export default function Home() {
     console.log('wasm found')
 
     const generateNodesOnCircle = async (numberOfNodes: number, radius = 200, centerX = 250, centerY = 250) => {
-      let newNodes:RNode[] = [];
-      let pks:`0x${string}`[] = []
+      let newNodes: RNode[] = [];
+      let pks: `0x${string}`[] = []
       for (let i = 0; i < numberOfNodes; i++) {
         const pk = generatePrivateKey()
         pks.push(pk)
@@ -83,8 +83,8 @@ export default function Home() {
       pks.sort((a, b) => {
         const aAddr = privateKeyToAccount(a).address.toLowerCase()
         const bAddr = privateKeyToAccount(b).address.toLowerCase()
-        if(aAddr > bAddr) return -1;
-        if(aAddr < bAddr) return 1;
+        if (aAddr > bAddr) return -1;
+        if (aAddr < bAddr) return 1;
         return 0;
       });
       /* pks.reverse() // bad case */
@@ -96,18 +96,18 @@ export default function Home() {
         const pk = pks[i]
         const account = privateKeyToAccount(pk)
         const signer = async (proof: string): Promise<Uint8Array> => {
-            const signed = await account.signMessage({message: proof})
-            return new Uint8Array(hexToBytes(signed!));
+          const signed = await account.signMessage({ message: proof })
+          return new Uint8Array(hexToBytes(signed!));
         }
 
         const listen = async () => {
-	  const snark = new SNARKBehaviour()
-	  console.log(snark)
+          const snark = new SNARKBehaviour()
+          console.log(snark)
           const context = new BackendBehaviour(
             service_message_handler,
             plain_text_message_handler,
             extension_message_handler,
-	    snark.clone()
+            snark.clone()
           )
           let provider: Provider = await new Provider(
             // ice_servers
@@ -124,25 +124,25 @@ export default function Home() {
             context
           )
           await provider.listen()
-	  /* console.log(provider, circuits, account.address, snark_backend, snark_task_builder)
-	     console.log("start send proof task to self")
-	     await snark_backend.send_proof_task_to(
-	     provider,
-	     circuits,
-	     account.address
-	     )
-	     console.log("end send proof task")
-	   */
+          /* console.log(provider, circuits, account.address, snark_backend, snark_task_builder)
+             console.log("start send proof task to self")
+             await snark_backend.send_proof_task_to(
+             provider,
+             circuits,
+             account.address
+             )
+             console.log("end send proof task")
+           */
           if (i > 0) {
-            const prevItem = newNodes[i-1];
+            const prevItem = newNodes[i - 1];
 
-            const cor = new rings_node.CreateOfferRequest({did:account.address})
-            const corResponse:rings_node.CreateOfferResponse = await prevItem.provider.request("createOffer", cor)
+            const cor = new rings_node.CreateOfferRequest({ did: account.address })
+            const corResponse: rings_node.CreateOfferResponse = await prevItem.provider.request("createOffer", cor)
 
-            const aor = new rings_node.AnswerOfferRequest({offer:corResponse.offer})
-            const aorResponse:rings_node.AnswerOfferResponse = await provider.request("answerOffer", aor)
+            const aor = new rings_node.AnswerOfferRequest({ offer: corResponse.offer })
+            const aorResponse: rings_node.AnswerOfferResponse = await provider.request("answerOffer", aor)
 
-            const aar = new rings_node.AcceptAnswerRequest({answer:aorResponse.answer})
+            const aar = new rings_node.AcceptAnswerRequest({ answer: aorResponse.answer })
             await prevItem.provider.request("acceptAnswer", aar)
           }
           newNodes.push({ x, y, pk, account, provider, snark });
@@ -181,7 +181,7 @@ export default function Home() {
       [["path", [BigInt(31), BigInt(1)]]],
       [["path", [BigInt(4), BigInt(1)]]],
       [["path", [BigInt(41123), BigInt(0)]]],
-    ].map((input)=>Input.from_array(input, F))
+    ].map((input) => Input.from_array(input, F))
     console.log("init input DONE")
 
     console.log("gen circuit START")
@@ -203,20 +203,21 @@ export default function Home() {
   }
 
   const ringsProof = async () => {
-    for (let i = 0; i < numberOfNodes; i++) {
-      if (i == numberOfNodes - 1) {
-	did = nodes[0].account.address
+    for (let i = 0; i < nodes.length; i++) {
+      let did: string
+      if (i == nodes.length - 1) {
+        did = nodes[0].account.address
       } else {
-	did = node[i+1].account.address
+        did = nodes[i + 1].account.address
       }
       let snarkBackend = nodes[i].snark
       console.log(nodes[i])
       const F = SupportedPrimeField.Pallas
       console.log("loading r1cs and wasm START")
       const snarkTaskBuilder = await new SNARKTaskBuilder(
-	"http://localhost:3000/merkle_tree.r1cs",
-	"http://localhost:3000/merkle_tree.wasm",
-	F
+        "http://localhost:3000/merkle_tree.r1cs",
+        "http://localhost:3000/merkle_tree.wasm",
+        F
       )
       console.log("loading r1cs and wasm DONE")
       /// Root of merkle tree
@@ -225,26 +226,26 @@ export default function Home() {
       const input = Input.from_array(publicInputData, F)
       /// Path of merkle tree, path[0]: leaf, path[1]: position (left or right)
       const privateInput = [
-	[["path", [BigInt(123456), BigInt(0)]]],
-	[["path", [BigInt(33), BigInt(1)]]],
-	[["path", [BigInt(3333), BigInt(0)]]],
-	[["path", [BigInt(31), BigInt(1)]]],
-	[["path", [BigInt(4), BigInt(1)]]],
-	[["path", [BigInt(41123), BigInt(0)]]],
-      ].map((input)=>Input.from_array(input, F))
+        [["path", [BigInt(123456), BigInt(0)]]],
+        [["path", [BigInt(33), BigInt(1)]]],
+        [["path", [BigInt(3333), BigInt(0)]]],
+        [["path", [BigInt(31), BigInt(1)]]],
+        [["path", [BigInt(4), BigInt(1)]]],
+        [["path", [BigInt(41123), BigInt(0)]]],
+      ].map((input) => Input.from_array(input, F))
       console.log("init input DONE")
 
       console.log("gen circuit START")
       console.log(privateInput)
       const circuits = snarkTaskBuilder.gen_circuits(
-	input, privateInput, 6
+        input, privateInput, 6
       )
       console.log("gen circuit DONE")
       console.log("gen task")
       await snark_backend.send_proof_task_to(
-	node[i].provider,
-	circuits,
-	did
+        node[i].provider,
+        circuits,
+        did
       )
     }
 
@@ -266,13 +267,13 @@ export default function Home() {
     const interval = setInterval(async () => {
       if (nodes != null) {
         // console.log(nodes);
-        var links:any = []
+        var links: any = []
         for (let i = 0; i < nodes.length; i++) {
           const node = nodes[i];
-          const info:rings_node.INodeInfoResponse = await node.provider.request("nodeInfo", [])
+          const info: rings_node.INodeInfoResponse = await node.provider.request("nodeInfo", [])
           info.swarm!.peers!.map((peer) => {
             if (peer.state == "Connected") {
-              var targetNode:RNode|undefined;
+              var targetNode: RNode | undefined;
               for (let j = 0; j < nodes.length; j++) {
                 const inode = nodes[j];
                 if (inode.account.address.toLowerCase() == peer.did!.toLowerCase()) {
@@ -282,12 +283,12 @@ export default function Home() {
               }
               // console.log(targetNode!.account.address)
               if (targetNode != null && node != targetNode) {
-                links.push({source: node, target: targetNode})
+                links.push({ source: node, target: targetNode })
               }
             }
           })
         }
-        const newNodesData = {nodes, links}
+        const newNodesData = { nodes, links }
         setNodesData(newNodesData)
       }
     }, 1000);
@@ -300,9 +301,9 @@ export default function Home() {
         <Graph<RLink, RNode>
           graph={nodesData}
           nodeComponent={({ node }) =>
-          <DefaultNode onClick={() => console.log(node)} />
-        }/>
-        </svg>)
+            <DefaultNode onClick={() => console.log(node)} />
+          } />
+      </svg>)
     }
     return (<svg width="500" height="500"></svg>)
   };
@@ -324,7 +325,7 @@ export default function Home() {
             </span>
           </h2>
           <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            {node.account.address.substring(0,6)}
+            {node.account.address.substring(0, 6)}
           </p>
         </a>)
       }
@@ -332,7 +333,7 @@ export default function Home() {
 
     return (
       <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-      {nodeElements}
+        {nodeElements}
       </div>
     )
   }
@@ -388,9 +389,9 @@ export default function Home() {
       </div>
       <InfoTable />
       <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-2 lg:text-left">
-      <MyGraph />
-      <textarea className="bg-gradient-to-b from-zinc-200 dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-2 lg:dark:bg-zinc-800/30"
-      value={nodes ? nodes.map((node: RNode) => node.pk) : ""}></textarea>
+        <MyGraph />
+        <textarea className="bg-gradient-to-b from-zinc-200 dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-2 lg:dark:bg-zinc-800/30"
+          value={nodes ? nodes.map((node: RNode) => node.pk) : ""}></textarea>
       </div>
     </main>
   );
