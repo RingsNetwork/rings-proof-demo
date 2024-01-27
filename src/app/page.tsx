@@ -14,6 +14,7 @@ import init, {
   Input
 } from '@ringsnetwork/rings-node'
 import { PrivateKeyAccount, generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
+import { EventData, CallBackEventData } from "@/components/rings/WorkerTypes";
 
 function hexToBytes(hex: number | string) {
   hex = hex.toString(16)
@@ -22,17 +23,17 @@ function hexToBytes(hex: number | string) {
   return bytes
 }
 
-const service_message_handler = async (ctxRef: any, providerRef: any, msgCtx: any, msg: any) => {
+let service_message_handler = async (ctxRef: any, providerRef: any, msgCtx: any, msg: any) => {
   console.log('service_message_handler')
   console.log(msg)
 }
 
-const plain_text_message_handler = async (ctxRef: any, providerRef: any, msgCtx: any, msg: any) => {
+let plain_text_message_handler = async (ctxRef: any, providerRef: any, msgCtx: any, msg: any) => {
   console.log('plain_text_message_handler')
   console.log(msg)
 }
 
-const extension_message_handler = async (ctxRef: any, providerRef: any, msgCtx: any, msg: any) => {
+let extension_message_handler = async (ctxRef: any, providerRef: any, msgCtx: any, msg: any) => {
   console.log('extension_message_handler')
   console.log(msg)
 }
@@ -40,10 +41,10 @@ const extension_message_handler = async (ctxRef: any, providerRef: any, msgCtx: 
 interface RNode {
   x: number,
   y: number,
-  pk: string,
+  pk: `0x${string}`,
   account: PrivateKeyAccount,
-  provider: Provider,
-  snark: SNARKBehaviour,
+  worker: Worker,
+  snark?: SNARKBehaviour,
 }
 
 interface RLink {
@@ -53,13 +54,14 @@ interface RLink {
 
 export default function Home() {
   const [wasm, setWasm] = useState<any>(null)
-  const [nodes, setNodes] = useState<any>(null)
+  const [nodes, setNodes] = useState<RNode[]|null>(null)
   const [nodesData, setNodesData] = useState<any>(null)
+  const [readyCount, setReadyCount] = useState<number>(0)
   useEffect(() => {
     if (!wasm) {
       const initWasm = async () => {
         const w = await init()
-        //        debug(true)
+              //  debug(true)
         setWasm(w)
       }
 
@@ -72,6 +74,8 @@ export default function Home() {
       return
     }
     console.log('wasm found')
+    
+    let count = readyCount;
 
     const generateNodesOnCircle = async (numberOfNodes: number, radius = 200, centerX = 250, centerY = 250) => {
       let newNodes: RNode[] = [];
@@ -100,54 +104,52 @@ export default function Home() {
           return new Uint8Array(hexToBytes(signed!));
         }
 
-        const listen = async () => {
-          const snark = new SNARKBehaviour()
-          console.log(snark)
-          const context = new BackendBehaviour(
-            service_message_handler,
-            plain_text_message_handler,
-            extension_message_handler,
-            snark.clone()
-          )
-          let provider: Provider = await new Provider(
-            // ice_servers
-            'stun://stun.l.google.com:19302',
-            // stable_timeout
-            BigInt(1),
-            // account
-            account.address,
-            // account type
-            "eip191",
-            // signer
-            signer,
-            // callback
-            context
-          )
-          await provider.listen()
-          /* console.log(provider, circuits, account.address, snark_backend, snark_task_builder)
-             console.log("start send proof task to self")
-             await snark_backend.send_proof_task_to(
-             provider,
-             circuits,
-             account.address
-             )
-             console.log("end send proof task")
-           */
-          if (i > 0) {
-            const prevItem = newNodes[i - 1];
-
-            const cor = new rings_node.CreateOfferRequest({ did: account.address })
-            const corResponse: rings_node.CreateOfferResponse = await prevItem.provider.request("createOffer", cor)
-
-            const aor = new rings_node.AnswerOfferRequest({ offer: corResponse.offer })
-            const aorResponse: rings_node.AnswerOfferResponse = await provider.request("answerOffer", aor)
-
-            const aar = new rings_node.AcceptAnswerRequest({ answer: aorResponse.answer })
-            await prevItem.provider.request("acceptAnswer", aar)
+        const worker = new Worker(new URL('@/components/rings/rings-node.worker.tsx', import.meta.url))
+        worker.onmessage = function (event) {
+          const data:CallBackEventData = event.data;
+          console.log(data)
+          const allNodes = newNodes;
+          if (data.type === 'new') {
+            for (let i = 0; i < allNodes!.length; i++) {
+              var node = allNodes![i];
+              if (node.account.address.toLowerCase() == data.address.toLowerCase()) {
+                count ++
+                setReadyCount(count)
+                break
+              }
+            }
+          } else if (data.type === 'createOfferResponse') {
+            console.log('createOfferResponse')
+            for (let i = 0; i < allNodes!.length - 1; i++) {
+              var node = allNodes![i];
+              if (node.account.address.toLowerCase() == data.address.toLowerCase()) {
+                var nextNode = allNodes![i + 1];
+                var aor = new rings_node.AnswerOfferRequest({ offer: data.createOfferResponse!.offer })
+                var eventData: EventData = {
+                  type: 'answerOfferRequest',
+                  answerOfferRequest: aor
+                }
+                nextNode.worker.postMessage(data)
+                break
+              }
+            }
+          } else if (data.type === 'answerOfferResponse') {
+            for (let i = 0; i < allNodes!.length; i++) {
+              var node = allNodes![i];
+              if (node.account.address.toLowerCase() == data.address.toLowerCase()) {
+                const prevNode = allNodes![i - 1];
+                const aar = new rings_node.AcceptAnswerRequest({ answer: data.answerOfferResponse!.answer })
+                var eventData: EventData = {
+                  type: 'acceptAnswerRequest',
+                  acceptAnswerRequest: aar
+                }
+                prevNode.worker.postMessage(data)
+                break
+              }
+            }
           }
-          newNodes.push({ x, y, pk, account, provider, snark });
-        }
-        await listen()
+        };
+        newNodes.push({ x, y, pk, account, worker,});
       }
       setNodes(newNodes)
     }
@@ -155,12 +157,51 @@ export default function Home() {
     generateNodesOnCircle(16);
   }, [wasm]);
 
+  useEffect(() => {
+    if (readyCount < 16) {
+      return
+    }
+
+    if (!nodes) {
+      return
+    }
+
+      console.log('wa')
+      for (let i = 1; i < nodes!.length; i++) {
+        const node = nodes![i];
+        const prevNode = nodes![i - 1];
+
+        const cor = new rings_node.CreateOfferRequest({ did: node.account.address.toLowerCase() })
+        var corData: EventData = {
+          type: 'createOfferRequest',
+          createOfferRequest: cor
+        }
+        console.log('789')
+        prevNode.worker.postMessage(corData)
+      }
+  }, [readyCount])
+
+  useEffect(() => {
+    if (!nodes) {
+      return
+    }
+    for (let index = 0; index < nodes!.length; index++) {
+      const node = nodes![index];
+      const worker = node.worker;
+      var data: EventData = {
+        type: 'new',
+        pk: node.pk
+      }
+      worker.postMessage(data)
+    }
+  }, [nodes]);
+
   const setupNodes = () => {
 
   }
 
   const singleProof = async () => {
-    console.log(nodes[0])
+    console.log(nodes![0])
     const F = SupportedPrimeField.Pallas
     console.log("loading r1cs and wasm START")
     const snarkTaskBuilder = await new SNARKTaskBuilder(
@@ -203,15 +244,15 @@ export default function Home() {
   }
 
   const ringsProof = async () => {
-    for (let i = 0; i < nodes.length; i++) {
+    for (let i = 0; i < nodes!.length; i++) {
       let did: string
-      if (i == nodes.length - 1) {
-        did = nodes[0].account.address
+      if (i == nodes!.length - 1) {
+        did = nodes![0].account.address
       } else {
-        did = nodes[i + 1].account.address
+        did = nodes![i + 1].account.address
       }
-      let snarkBackend = nodes[i].snark
-      console.log(nodes[i])
+      let snarkBackend = nodes![i].snark
+      console.log(nodes![i])
       const F = SupportedPrimeField.Pallas
       console.log("loading r1cs and wasm START")
       const snarkTaskBuilder = await new SNARKTaskBuilder(
@@ -242,8 +283,8 @@ export default function Home() {
       )
       console.log("gen circuit DONE")
       console.log("gen task")
-      await snark_backend.send_proof_task_to(
-        node[i].provider,
+      await snarkBackend!.send_proof_task_to(
+        nodes![i].provider,
         circuits,
         did
       )
@@ -263,37 +304,37 @@ export default function Home() {
   //   }
   // }, [nodes]);
 
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      if (nodes != null) {
-        // console.log(nodes);
-        var links: any = []
-        for (let i = 0; i < nodes.length; i++) {
-          const node = nodes[i];
-          const info: rings_node.INodeInfoResponse = await node.provider.request("nodeInfo", [])
-          info.swarm!.peers!.map((peer) => {
-            if (peer.state == "Connected") {
-              var targetNode: RNode | undefined;
-              for (let j = 0; j < nodes.length; j++) {
-                const inode = nodes[j];
-                if (inode.account.address.toLowerCase() == peer.did!.toLowerCase()) {
-                  targetNode = inode;
-                  break
-                }
-              }
-              // console.log(targetNode!.account.address)
-              if (targetNode != null && node != targetNode) {
-                links.push({ source: node, target: targetNode })
-              }
-            }
-          })
-        }
-        const newNodesData = { nodes, links }
-        setNodesData(newNodesData)
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [nodes]);
+  // useEffect(() => {
+  //   const interval = setInterval(async () => {
+  //     if (nodes != null) {
+  //       // console.log(nodes);
+  //       var links: any = []
+  //       for (let i = 0; i < nodes.length; i++) {
+  //         const node = nodes[i];
+  //         const info: rings_node.INodeInfoResponse = await node.provider.request("nodeInfo", [])
+  //         info.swarm!.peers!.map((peer) => {
+  //           if (peer.state == "Connected") {
+  //             var targetNode: RNode | undefined;
+  //             for (let j = 0; j < nodes.length; j++) {
+  //               const inode = nodes[j];
+  //               if (inode.account.address.toLowerCase() == peer.did!.toLowerCase()) {
+  //                 targetNode = inode;
+  //                 break
+  //               }
+  //             }
+  //             // console.log(targetNode!.account.address)
+  //             if (targetNode != null && node != targetNode) {
+  //               links.push({ source: node, target: targetNode })
+  //             }
+  //           }
+  //         })
+  //       }
+  //       const newNodesData = { nodes, links }
+  //       setNodesData(newNodesData)
+  //     }
+  //   }, 1000);
+  //   return () => clearInterval(interval);
+  // }, [nodes]);
 
   const MyGraph = () => {
     if (nodes != null) {
@@ -390,8 +431,8 @@ export default function Home() {
       <InfoTable />
       <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-2 lg:text-left">
         <MyGraph />
-        <textarea className="bg-gradient-to-b from-zinc-200 dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-2 lg:dark:bg-zinc-800/30"
-          value={nodes ? nodes.map((node: RNode) => node.pk) : ""}></textarea>
+        {/* <textarea className="bg-gradient-to-b from-zinc-200 dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-2 lg:dark:bg-zinc-800/30"
+          value={nodes ? nodes.map((node: RNode) => node.pk) : ""}></textarea> */}
       </div>
     </main>
   );
