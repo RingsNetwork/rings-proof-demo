@@ -14,6 +14,7 @@ import init, {
   Input
 } from '@ringsnetwork/rings-node'
 import { PrivateKeyAccount, generatePrivateKey, privateKeyToAccount } from 'viem/accounts'
+import { EventData, CallBackEventData } from "@/components/rings/WorkerTypes";
 
 function hexToBytes(hex: number | string) {
   hex = hex.toString(16)
@@ -44,6 +45,7 @@ interface RNode {
   account: PrivateKeyAccount,
   provider: Provider,
   snark: SNARKBehaviour,
+  worker: Worker,
 }
 
 interface RLink {
@@ -53,6 +55,7 @@ interface RLink {
 
 export default function Home() {
   const [wasm, setWasm] = useState<any>(null)
+  // const [worker, setWorker] = useState<any>(null)
   const [nodes, setNodes] = useState<any>(null)
   const [nodesData, setNodesData] = useState<any>(null)
   useEffect(() => {
@@ -66,6 +69,17 @@ export default function Home() {
       initWasm()
     }
   }, [wasm])
+
+  // useEffect(() => {
+  //   if (!worker) {
+  //     const w = new Worker(new URL('@/components/rings/rings-node.worker.tsx', import.meta.url))
+  //     var initEventData: EventData = {
+  //       type: 'init'
+  //     }
+  //     w.postMessage(initEventData)
+  //     setWorker(w)
+  //   }
+  // }, [worker])
 
   useEffect(() => {
     if (!wasm) {
@@ -102,7 +116,6 @@ export default function Home() {
 
         const listen = async () => {
           const snark = new SNARKBehaviour()
-          console.log(snark)
           const context = new BackendBehaviour(
             service_message_handler,
             plain_text_message_handler,
@@ -145,7 +158,21 @@ export default function Home() {
             const aar = new rings_node.AcceptAnswerRequest({ answer: aorResponse.answer })
             await prevItem.provider.request("acceptAnswer", aar)
           }
-          newNodes.push({ x, y, pk, account, provider, snark });
+          const worker = new Worker(new URL('@/components/rings/rings-node.worker.tsx', import.meta.url))
+          worker.onmessage  = function (event) {
+            const data:CallBackEventData = event.data;
+            console.log(data)
+          }
+          var initEventData: EventData = {
+            type: 'init'
+          }
+          worker.postMessage(initEventData)
+          var configEventData: EventData = {
+            type: 'config',
+            pk: pk
+          }
+          worker.postMessage(configEventData)
+          newNodes.push({ x, y, pk, account, provider, snark, worker});
         }
         await listen()
       }
@@ -183,35 +210,38 @@ export default function Home() {
       [["path", [BigInt(41123), BigInt(0)]]],
     ].map((input) => Input.from_array(input, F))
     console.log("init input DONE")
-
+    console.log(input)
     console.log("gen circuit START")
     console.log(privateInput)
     const circuits = snarkTaskBuilder.gen_circuits(
       input, privateInput, 6
     )
-    console.log("gen circuit DONE")
-    console.log("gen task")
-    const task = SNARKBehaviour.gen_proof_task_ref(circuits)
-    console.log("gen task DONE")
-    console.log("gen proof")
-    console.log(task)
-    const proof = SNARKBehaviour.handle_snark_proof_task_ref(task.clone())
-    console.log("gen proof DONE")
-    console.log("verify")
-    let ret = SNARKBehaviour.handle_snark_verify_task_ref(proof.clone(), task.clone())
-    console.log("verify DONE", ret)
+    console.log(circuits)
+    var circuitArray = []
+    for (let index = 0; index < circuits.length; index++) {
+      const circuitJson = circuits[index].to_json();
+      circuitArray.push(circuitJson)
+    }
+    var eventData: EventData = {
+      type: 'genProofRequest',
+      genProofCircuits: circuitArray
+    }
+    nodes[0].worker.postMessage(eventData)
+
+    // console.log("gen circuit DONE")
+    // console.log("gen task")
+    // const task = SNARKBehaviour.gen_proof_task_ref(circuits)
+    // console.log("gen task DONE")
+    // console.log("gen proof")
+    // console.log(task)
+    // const proof = SNARKBehaviour.handle_snark_proof_task_ref(task.clone())
+    // console.log("gen proof DONE")
+    // console.log("verify")
+    // let ret = SNARKBehaviour.handle_snark_verify_task_ref(proof.clone(), task.clone())
+    // console.log("verify DONE", ret)
   }
 
   const ringsProof = async () => {
-    for (let i = 0; i < nodes.length; i++) {
-      let did: string
-      if (i == nodes.length - 1) {
-        did = nodes[0].account.address
-      } else {
-        did = nodes[i + 1].account.address
-      }
-      let snarkBackend = nodes[i].snark
-      console.log(nodes[i])
       const F = SupportedPrimeField.Pallas
       console.log("loading r1cs and wasm START")
       const snarkTaskBuilder = await new SNARKTaskBuilder(
@@ -242,12 +272,36 @@ export default function Home() {
       )
       console.log("gen circuit DONE")
       console.log("gen task")
-      await snarkBackend.send_proof_task_to(
-        nodes[i].provider,
-        circuits,
-        did
-      )
-    }
+
+      for (let i = 0; i < circuits.length; i++) {
+        console.log('to json START')
+        const splitCircuits = circuits[i].to_json();
+        console.log('to json END')
+        const nodeIndex = i % nodes.length
+        
+        var eventData: EventData = {
+          type: 'genProofRequest',
+          genProofCircuits: [splitCircuits]
+        }
+        console.log("send task")
+        nodes[nodeIndex].worker.postMessage(eventData)
+      }
+
+    //   for (let i = 0; i < nodes.length; i++) {
+    //     let did: string
+    //     if (i == nodes.length - 1) {
+    //       did = nodes[0].account.address
+    //     } else {
+    //       did = nodes[i + 1].account.address
+    //     }
+    //     let snarkBackend = nodes[i].snark
+    //     console.log(nodes[i])
+    //   await snarkBackend.send_proof_task_to(
+    //     nodes[i].provider,
+    //     circuits,
+    //     did
+    //   )
+    // }
 
   }
 
@@ -263,37 +317,37 @@ export default function Home() {
   //   }
   // }, [nodes]);
 
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      if (nodes != null) {
-        // console.log(nodes);
-        var links: any = []
-        for (let i = 0; i < nodes.length; i++) {
-          const node = nodes[i];
-          const info: rings_node.INodeInfoResponse = await node.provider.request("nodeInfo", [])
-          info.swarm!.peers!.map((peer) => {
-            if (peer.state == "Connected") {
-              var targetNode: RNode | undefined;
-              for (let j = 0; j < nodes.length; j++) {
-                const inode = nodes[j];
-                if (inode.account.address.toLowerCase() == peer.did!.toLowerCase()) {
-                  targetNode = inode;
-                  break
-                }
-              }
-              // console.log(targetNode!.account.address)
-              if (targetNode != null && node != targetNode) {
-                links.push({ source: node, target: targetNode })
-              }
-            }
-          })
-        }
-        const newNodesData = { nodes, links }
-        setNodesData(newNodesData)
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [nodes]);
+  // useEffect(() => {
+  //   const interval = setInterval(async () => {
+  //     if (nodes != null) {
+  //       // console.log(nodes);
+  //       var links: any = []
+  //       for (let i = 0; i < nodes.length; i++) {
+  //         const node = nodes[i];
+  //         const info: rings_node.INodeInfoResponse = await node.provider.request("nodeInfo", [])
+  //         info.swarm!.peers!.map((peer) => {
+  //           if (peer.state == "Connected") {
+  //             var targetNode: RNode | undefined;
+  //             for (let j = 0; j < nodes.length; j++) {
+  //               const inode = nodes[j];
+  //               if (inode.account.address.toLowerCase() == peer.did!.toLowerCase()) {
+  //                 targetNode = inode;
+  //                 break
+  //               }
+  //             }
+  //             // console.log(targetNode!.account.address)
+  //             if (targetNode != null && node != targetNode) {
+  //               links.push({ source: node, target: targetNode })
+  //             }
+  //           }
+  //         })
+  //       }
+  //       const newNodesData = { nodes, links }
+  //       setNodesData(newNodesData)
+  //     }
+  //   }, 1000);
+  //   return () => clearInterval(interval);
+  // }, [nodes]);
 
   const MyGraph = () => {
     if (nodes != null) {
