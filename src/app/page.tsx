@@ -242,8 +242,8 @@ export default function Home() {
       )
       console.log("gen circuit DONE")
       console.log("gen task")
-      await snark_backend.send_proof_task_to(
-        node[i].provider,
+      await snarkBackend.send_proof_task_to(
+        nodes[i].provider,
         circuits,
         did
       )
