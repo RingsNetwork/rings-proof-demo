@@ -58,11 +58,25 @@ export default function Home() {
   // const [worker, setWorker] = useState<any>(null)
   const [nodes, setNodes] = useState<any>(null)
   const [nodesData, setNodesData] = useState<any>(null)
+
+  // const [logs, setLogs] = useState<string[]>([])
+  
+  // var originalLog = console.log;
+  // console.log = function(msg) {
+  //   var logsHistory = logs;
+  //   var timestamp = '[' + Date.now() + '] ';
+  //   logsHistory.push(timestamp + msg + '\n')
+  // }
+
+  // useEffect(() => {
+
+  // }, [logs])
+
   useEffect(() => {
     if (!wasm) {
       const initWasm = async () => {
         const w = await init()
-        //        debug(true)
+        debug(true)
         setWasm(w)
       }
 
@@ -101,7 +115,7 @@ export default function Home() {
         if (aAddr < bAddr) return 1;
         return 0;
       });
-      /* pks.reverse() // bad case */
+      // pks.reverse() // bad case
       for (let i = 0; i < numberOfNodes; i++) {
         const angle = 2 * Math.PI * i / numberOfNodes;
         const x = centerX + radius * Math.cos(angle);
@@ -188,87 +202,27 @@ export default function Home() {
 
   const singleProof = async () => {
     console.log(nodes[0])
-    const F = SupportedPrimeField.Pallas
+    const F = SupportedPrimeField.Vesta
     console.log("loading r1cs and wasm START")
     const snarkTaskBuilder = await new SNARKTaskBuilder(
-      "http://localhost:3000/merkle_tree.r1cs",
-      "http://localhost:3000/merkle_tree.wasm",
+      "http://localhost:3000/test_sha256.r1cs",
+      "http://localhost:3000/test_sha256.wasm",
       F
     )
     console.log("loading r1cs and wasm DONE")
     /// Root of merkle tree
     console.log("init input START")
-    const publicInputData = [["leaf", [BigInt(42)]]]
+    const publicInputData = [["in", new Array(256).fill(BigInt(0))]]
     const input = Input.from_array(publicInputData, F)
     /// Path of merkle tree, path[0]: leaf, path[1]: position (left or right)
     const privateInput = [
-      [["path", [BigInt(123456), BigInt(0)]]],
-      [["path", [BigInt(33), BigInt(1)]]],
-      [["path", [BigInt(3333), BigInt(0)]]],
-      [["path", [BigInt(31), BigInt(1)]]],
-      [["path", [BigInt(4), BigInt(1)]]],
-      [["path", [BigInt(41123), BigInt(0)]]],
-      [["path", [BigInt(123456), BigInt(0)]]],
-      [["path", [BigInt(33), BigInt(1)]]],
-      [["path", [BigInt(3333), BigInt(0)]]],
-      [["path", [BigInt(31), BigInt(1)]]],
-      [["path", [BigInt(4), BigInt(1)]]],
-      [["path", [BigInt(41123), BigInt(0)]]],
-      [["path", [BigInt(123456), BigInt(0)]]],
-      [["path", [BigInt(33), BigInt(1)]]],
-      [["path", [BigInt(3333), BigInt(0)]]],
-      [["path", [BigInt(31), BigInt(1)]]],
-      [["path", [BigInt(4), BigInt(1)]]],
-      [["path", [BigInt(41123), BigInt(0)]]],
-      [["path", [BigInt(123456), BigInt(0)]]],
-      [["path", [BigInt(33), BigInt(1)]]],
-      [["path", [BigInt(3333), BigInt(0)]]],
-      [["path", [BigInt(31), BigInt(1)]]],
-      [["path", [BigInt(4), BigInt(1)]]],
-      [["path", [BigInt(41123), BigInt(0)]]],
-      [["path", [BigInt(123456), BigInt(0)]]],
-      [["path", [BigInt(33), BigInt(1)]]],
-      [["path", [BigInt(3333), BigInt(0)]]],
-      [["path", [BigInt(31), BigInt(1)]]],
-      [["path", [BigInt(4), BigInt(1)]]],
-      [["path", [BigInt(41123), BigInt(0)]]],
-      [["path", [BigInt(123456), BigInt(0)]]],
-      [["path", [BigInt(33), BigInt(1)]]],
-      [["path", [BigInt(3333), BigInt(0)]]],
-      [["path", [BigInt(31), BigInt(1)]]],
-      [["path", [BigInt(4), BigInt(1)]]],
-      [["path", [BigInt(41123), BigInt(0)]]],
-      [["path", [BigInt(123456), BigInt(0)]]],
-      [["path", [BigInt(33), BigInt(1)]]],
-      [["path", [BigInt(3333), BigInt(0)]]],
-      [["path", [BigInt(31), BigInt(1)]]],
-      [["path", [BigInt(4), BigInt(1)]]],
-      [["path", [BigInt(41123), BigInt(0)]]],
-      [["path", [BigInt(123456), BigInt(0)]]],
-      [["path", [BigInt(33), BigInt(1)]]],
-      [["path", [BigInt(3333), BigInt(0)]]],
-      [["path", [BigInt(31), BigInt(1)]]],
-      [["path", [BigInt(4), BigInt(1)]]],
-      [["path", [BigInt(41123), BigInt(0)]]],
-      [["path", [BigInt(123456), BigInt(0)]]],
-      [["path", [BigInt(33), BigInt(1)]]],
-      [["path", [BigInt(3333), BigInt(0)]]],
-      [["path", [BigInt(31), BigInt(1)]]],
-      [["path", [BigInt(4), BigInt(1)]]],
-      [["path", [BigInt(41123), BigInt(0)]]],
-      [["path", [BigInt(123456), BigInt(0)]]],
-      [["path", [BigInt(33), BigInt(1)]]],
-      [["path", [BigInt(3333), BigInt(0)]]],
-      [["path", [BigInt(31), BigInt(1)]]],
-      [["path", [BigInt(4), BigInt(1)]]],
-      [["path", [BigInt(41123), BigInt(0)]]],
     ].map((input) => Input.from_array(input, F))
     console.log("init input DONE")
     console.log(input)
     console.log("gen circuit START")
     console.log(privateInput)
     const circuits = snarkTaskBuilder.gen_circuits(
-      input, privateInput, 60
+      input, privateInput, 36
     )
     console.log(circuits)
     var circuitArray = []
@@ -296,106 +250,44 @@ export default function Home() {
   }
 
   const ringsProof = async () => {
-      const F = SupportedPrimeField.Pallas
+      const F = SupportedPrimeField.Vesta
       console.log("loading r1cs and wasm START")
       const snarkTaskBuilder = await new SNARKTaskBuilder(
-        "http://localhost:3000/merkle_tree.r1cs",
-        "http://localhost:3000/merkle_tree.wasm",
+        "http://localhost:3000/test_sha256.r1cs",
+        "http://localhost:3000/test_sha256.wasm",
         F
       )
       console.log("loading r1cs and wasm DONE")
       /// Root of merkle tree
       console.log("init input START")
-      const publicInputData = [["leaf", [BigInt(42)]]]
+      const publicInputData = [["in", new Array(256).fill(BigInt(0))]]
       const input = Input.from_array(publicInputData, F)
       /// Path of merkle tree, path[0]: leaf, path[1]: position (left or right)
       const privateInput = [
-        [["path", [BigInt(123456), BigInt(0)]]],
-        [["path", [BigInt(33), BigInt(1)]]],
-        [["path", [BigInt(3333), BigInt(0)]]],
-        [["path", [BigInt(31), BigInt(1)]]],
-        [["path", [BigInt(4), BigInt(1)]]],
-        [["path", [BigInt(41123), BigInt(0)]]],
-        [["path", [BigInt(123456), BigInt(0)]]],
-        [["path", [BigInt(33), BigInt(1)]]],
-        [["path", [BigInt(3333), BigInt(0)]]],
-        [["path", [BigInt(31), BigInt(1)]]],
-        [["path", [BigInt(4), BigInt(1)]]],
-        [["path", [BigInt(41123), BigInt(0)]]],
-        [["path", [BigInt(123456), BigInt(0)]]],
-        [["path", [BigInt(33), BigInt(1)]]],
-        [["path", [BigInt(3333), BigInt(0)]]],
-        [["path", [BigInt(31), BigInt(1)]]],
-        [["path", [BigInt(4), BigInt(1)]]],
-        [["path", [BigInt(41123), BigInt(0)]]],
-        [["path", [BigInt(123456), BigInt(0)]]],
-        [["path", [BigInt(33), BigInt(1)]]],
-        [["path", [BigInt(3333), BigInt(0)]]],
-        [["path", [BigInt(31), BigInt(1)]]],
-        [["path", [BigInt(4), BigInt(1)]]],
-        [["path", [BigInt(41123), BigInt(0)]]],
-        [["path", [BigInt(123456), BigInt(0)]]],
-        [["path", [BigInt(33), BigInt(1)]]],
-        [["path", [BigInt(3333), BigInt(0)]]],
-        [["path", [BigInt(31), BigInt(1)]]],
-        [["path", [BigInt(4), BigInt(1)]]],
-        [["path", [BigInt(41123), BigInt(0)]]],
-        [["path", [BigInt(123456), BigInt(0)]]],
-        [["path", [BigInt(33), BigInt(1)]]],
-        [["path", [BigInt(3333), BigInt(0)]]],
-        [["path", [BigInt(31), BigInt(1)]]],
-        [["path", [BigInt(4), BigInt(1)]]],
-        [["path", [BigInt(41123), BigInt(0)]]],
-        [["path", [BigInt(123456), BigInt(0)]]],
-        [["path", [BigInt(33), BigInt(1)]]],
-        [["path", [BigInt(3333), BigInt(0)]]],
-        [["path", [BigInt(31), BigInt(1)]]],
-        [["path", [BigInt(4), BigInt(1)]]],
-        [["path", [BigInt(41123), BigInt(0)]]],
-        [["path", [BigInt(123456), BigInt(0)]]],
-        [["path", [BigInt(33), BigInt(1)]]],
-        [["path", [BigInt(3333), BigInt(0)]]],
-        [["path", [BigInt(31), BigInt(1)]]],
-        [["path", [BigInt(4), BigInt(1)]]],
-        [["path", [BigInt(41123), BigInt(0)]]],
-        [["path", [BigInt(123456), BigInt(0)]]],
-        [["path", [BigInt(33), BigInt(1)]]],
-        [["path", [BigInt(3333), BigInt(0)]]],
-        [["path", [BigInt(31), BigInt(1)]]],
-        [["path", [BigInt(4), BigInt(1)]]],
-        [["path", [BigInt(41123), BigInt(0)]]],
-        [["path", [BigInt(123456), BigInt(0)]]],
-        [["path", [BigInt(33), BigInt(1)]]],
-        [["path", [BigInt(3333), BigInt(0)]]],
-        [["path", [BigInt(31), BigInt(1)]]],
-        [["path", [BigInt(4), BigInt(1)]]],
-        [["path", [BigInt(41123), BigInt(0)]]],
-        [["path", [BigInt(123456), BigInt(0)]]],
-        [["path", [BigInt(33), BigInt(1)]]],
-        [["path", [BigInt(3333), BigInt(0)]]],
-        [["path", [BigInt(31), BigInt(1)]]],
-        [["path", [BigInt(4), BigInt(1)]]],
-        [["path", [BigInt(41123), BigInt(0)]]],
       ].map((input) => Input.from_array(input, F))
       console.log("init input DONE")
 
       console.log("gen circuit START")
       console.log(privateInput)
       const circuits = snarkTaskBuilder.gen_circuits(
-        input, privateInput, 60
+        input, privateInput, 36
       )
       console.log("gen circuit DONE")
       console.log("gen task")
 
-      for (let i = 0; i < circuits.length; i++) {
+      for (let i = 0; i < 6; i++) {
         console.log('to json START')
-        const splitCircuits = circuits[i].to_json();
+        var splitCircuits: string[] = []
+        for (let j = 0; j < 6; j++) {
+          const circuitJson = circuits[i+j].to_json();
+          splitCircuits.push(circuitJson)
+        }
         console.log('to json END')
         const nodeIndex = i % nodes.length
         
         var eventData: EventData = {
           type: 'genProofRequest',
-          genProofCircuits: [splitCircuits]
+          genProofCircuits: splitCircuits
         }
         console.log("send task")
         nodes[nodeIndex].worker.postMessage(eventData)
@@ -431,37 +323,37 @@ export default function Home() {
   //   }
   // }, [nodes]);
 
-  // useEffect(() => {
-  //   const interval = setInterval(async () => {
-  //     if (nodes != null) {
-  //       // console.log(nodes);
-  //       var links: any = []
-  //       for (let i = 0; i < nodes.length; i++) {
-  //         const node = nodes[i];
-  //         const info: rings_node.INodeInfoResponse = await node.provider.request("nodeInfo", [])
-  //         info.swarm!.peers!.map((peer) => {
-  //           if (peer.state == "Connected") {
-  //             var targetNode: RNode | undefined;
-  //             for (let j = 0; j < nodes.length; j++) {
-  //               const inode = nodes[j];
-  //               if (inode.account.address.toLowerCase() == peer.did!.toLowerCase()) {
-  //                 targetNode = inode;
-  //                 break
-  //               }
-  //             }
-  //             // console.log(targetNode!.account.address)
-  //             if (targetNode != null && node != targetNode) {
-  //               links.push({ source: node, target: targetNode })
-  //             }
-  //           }
-  //         })
-  //       }
-  //       const newNodesData = { nodes, links }
-  //       setNodesData(newNodesData)
-  //     }
-  //   }, 1000);
-  //   return () => clearInterval(interval);
-  // }, [nodes]);
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (nodes != null) {
+        // console.log(nodes);
+        var links: any = []
+        for (let i = 0; i < nodes.length; i++) {
+          const node = nodes[i];
+          const info: rings_node.INodeInfoResponse = await node.provider.request("nodeInfo", [])
+          info.swarm!.peers!.map((peer) => {
+            if (peer.state == "Connected") {
+              var targetNode: RNode | undefined;
+              for (let j = 0; j < nodes.length; j++) {
+                const inode = nodes[j];
+                if (inode.account.address.toLowerCase() == peer.did!.toLowerCase()) {
+                  targetNode = inode;
+                  break
+                }
+              }
+              // console.log(targetNode!.account.address)
+              if (targetNode != null && node != targetNode) {
+                links.push({ source: node, target: targetNode })
+              }
+            }
+          })
+        }
+        const newNodesData = { nodes, links }
+        setNodesData(newNodesData)
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [nodes]);
 
   const MyGraph = () => {
     if (nodes != null) {
@@ -558,8 +450,8 @@ export default function Home() {
       <InfoTable />
       <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-2 lg:text-left">
         <MyGraph />
-        <textarea className="bg-gradient-to-b from-zinc-200 dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-2 lg:dark:bg-zinc-800/30"
-          value={nodes ? nodes.map((node: RNode) => node.pk) : ""}></textarea>
+        {/* <textarea className="bg-gradient-to-b from-zinc-200 dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-2 lg:dark:bg-zinc-800/30"
+          value={logs}></textarea> */}
       </div>
     </main>
   );
