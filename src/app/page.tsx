@@ -76,7 +76,7 @@ export default function Home() {
     if (!wasm) {
       const initWasm = async () => {
         const w = await init()
-        debug(true)
+        // debug(true)
         setWasm(w)
       }
 
@@ -161,31 +161,34 @@ export default function Home() {
              console.log("end send proof task")
            */
           if (i > 0) {
+            console.log('w1')
             const prevItem = newNodes[i - 1];
 
             const cor = new rings_node.CreateOfferRequest({ did: account.address })
             const corResponse: rings_node.CreateOfferResponse = await prevItem.provider.request("createOffer", cor)
-
+            console.log('w2')
             const aor = new rings_node.AnswerOfferRequest({ offer: corResponse.offer })
             const aorResponse: rings_node.AnswerOfferResponse = await provider.request("answerOffer", aor)
-
+            console.log('w3')
             const aar = new rings_node.AcceptAnswerRequest({ answer: aorResponse.answer })
             await prevItem.provider.request("acceptAnswer", aar)
+            console.log('w4')
           }
           const worker = new Worker(new URL('@/components/rings/rings-node.worker.tsx', import.meta.url))
           worker.onmessage  = function (event) {
             const data:CallBackEventData = event.data;
             console.log(data)
           }
-          var initEventData: EventData = {
-            type: 'init'
-          }
-          worker.postMessage(initEventData)
-          var configEventData: EventData = {
-            type: 'config',
-            pk: pk
-          }
-          worker.postMessage(configEventData)
+          // var initEventData: EventData = {
+          //   type: 'init'
+          // }
+          // worker.postMessage(initEventData)
+          // var configEventData: EventData = {
+          //   type: 'config',
+          //   pk: pk
+          // }
+          // worker.postMessage(configEventData)
+          console.log(i)
           newNodes.push({ x, y, pk, account, provider, snark, worker});
         }
         await listen()
