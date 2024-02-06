@@ -272,9 +272,9 @@
   resolved "https://registry.yarnpkg.com/@protobufjs/utf8/-/utf8-1.1.0.tgz#a777360b5b39a1a2e5106f8e858f2fd2d060c570"
   integrity sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw==
 
-"@ringsnetwork/rings-node@git+file:../rings-node#335ecae":
+"@ringsnetwork/rings-node@git+file:../rings-node#cb64397":
   version "0.5.5"
-  resolved "git+file:../rings-node#335ecae96f240c31104eeaa003eb6e08fb5ca14d"
+  resolved "git+file:../rings-node#cb643979d38cf2627af87704d6f8ffa82b082971"
   dependencies:
     circomlib "^2.0.5"
     protobufjs "^7.2.5"
