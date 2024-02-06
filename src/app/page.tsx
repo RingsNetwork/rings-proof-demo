@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import Image from "next/image";
 import classNames from 'classnames';
-import { DefaultNode, Graph } from '@visx/network';
+import { DefaultNode, Graph, DefaultLink } from '@visx/network';
 import init, {
   Provider,
   BackendBehaviour,
@@ -46,11 +46,14 @@ interface RNode {
   provider: Provider,
   snark: SNARKBehaviour,
   worker: Worker,
+  isCommiter: Boolean,
+  isWorker: Boolean
 }
 
 interface RLink {
-  source: RNode;
-  target: RNode;
+  source: RNode,
+  target: RNode,
+  messaging: Boolean
 }
 
 export default function Home() {
@@ -108,6 +111,12 @@ export default function Home() {
         const pk = generatePrivateKey()
         pks.push(pk)
       }
+      // var pksStr = '0x9c83fcb684af3dc71018b5a303245d2f2fed8a579096589f3234a67a52a7ac66,0xfd674cb6089663935cb061254602e343da8a2fa3908980ae4f7a27adb8b7ac8a,0xb9ce7159a2ad3b9fe885a7744d32afeec233e7ddeaed0759cbab2c00a1bd548b,0x4efb629f54a3f3dd91f5efffc4f9b51ab27eb082b2393067757681ed6439480d';
+      // var pksArray = pksStr.split(',')
+      // for (let j = 0; j < pksArray.length; j++) {
+      //   const pk = pksArray[j];
+      //   pks.push(pk as `0x${string}`)
+      // }
       pks.sort((a, b) => {
         const aAddr = privateKeyToAccount(a).address.toLowerCase()
         const bAddr = privateKeyToAccount(b).address.toLowerCase()
@@ -138,7 +147,8 @@ export default function Home() {
           )
           let provider: Provider = await new Provider(
             // ice_servers
-            'stun://stun.l.google.com:19302',
+            // 'stun://stun.l.google.com:19302',
+            'stun://stun.qq.com:3478',
             // stable_timeout
             BigInt(1),
             // account
@@ -179,17 +189,17 @@ export default function Home() {
             const data:CallBackEventData = event.data;
             console.log(data)
           }
-          // var initEventData: EventData = {
-          //   type: 'init'
-          // }
-          // worker.postMessage(initEventData)
-          // var configEventData: EventData = {
-          //   type: 'config',
-          //   pk: pk
-          // }
-          // worker.postMessage(configEventData)
+          var initEventData: EventData = {
+            type: 'init'
+          }
+          worker.postMessage(initEventData)
+          var configEventData: EventData = {
+            type: 'config',
+            pk: pk
+          }
+          worker.postMessage(configEventData)
           console.log(i)
-          newNodes.push({ x, y, pk, account, provider, snark, worker});
+          newNodes.push({ x, y, pk, account, provider, snark, worker, isCommiter:false, isWorker:false});
         }
         await listen()
       }
@@ -296,6 +306,31 @@ export default function Home() {
         nodes[nodeIndex].worker.postMessage(eventData)
       }
 
+      var nodesCopy = nodes;
+      nodesCopy[0].isCommiter = true;
+
+      const info: rings_node.INodeInfoResponse = await nodesCopy[0].provider.request("nodeInfo", [])
+      var linkedNodesCount = 0
+
+      info.swarm!.peers!.map((peer) => {
+        if (peer.state == "Connected") {
+          var targetNode: RNode | undefined;
+          for (let j = 0; j < nodesCopy.length; j++) {
+            const inode = nodesCopy[j];
+            if (inode.account.address.toLowerCase() == peer.did!.toLowerCase()) {
+              targetNode = inode;
+              if (linkedNodesCount < 6) {
+                inode.isWorker = true;
+              }
+              linkedNodesCount += 1
+              break
+            }
+          }
+        }
+      })
+
+      setNodes(nodesCopy)
+
     //   for (let i = 0; i < nodes.length; i++) {
     //     let did: string
     //     if (i == nodes.length - 1) {
@@ -330,7 +365,7 @@ export default function Home() {
     const interval = setInterval(async () => {
       if (nodes != null) {
         // console.log(nodes);
-        var links: any = []
+        var links: RLink[] = []
         for (let i = 0; i < nodes.length; i++) {
           const node = nodes[i];
           const info: rings_node.INodeInfoResponse = await node.provider.request("nodeInfo", [])
@@ -346,7 +381,13 @@ export default function Home() {
               }
               // console.log(targetNode!.account.address)
               if (targetNode != null && node != targetNode) {
-                links.push({ source: node, target: targetNode })
+                links.push({ 
+                  source: node,
+                  target: targetNode, 
+                  messaging: (
+                    (node.isCommiter && targetNode.isWorker) ||
+                    (node.isWorker && targetNode.isCommiter)
+                    ) })
               }
             }
           })
@@ -364,8 +405,21 @@ export default function Home() {
         <Graph<RLink, RNode>
           graph={nodesData}
           nodeComponent={({ node }) =>
-            <DefaultNode onClick={() => console.log(node)} />
-          } />
+            <DefaultNode 
+              onClick={() => console.log(node)}
+              fill={node.isCommiter ? "red" : (node.isWorker ? "green" : "cyan")}
+            />}
+          linkComponent={({link}) => 
+          <line
+          x1={link.source.x}
+          y1={link.source.y}
+          x2={link.target.x}
+          y2={link.target.y}
+          strokeWidth={2}
+          stroke={ link.messaging? "green" : "#999"}
+          strokeOpacity={ link.messaging? 0.8 : 0.2 }
+        />}
+        />
       </svg>)
     }
     return (<svg width="500" height="500"></svg>)
@@ -381,7 +435,7 @@ export default function Home() {
           className={nodeClass}
           target="_blank"
         >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
+          <h2 className={`mb-3 text-base font-semibold`}>
             Node{" " + i}
             <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
               -&gt;
@@ -395,7 +449,7 @@ export default function Home() {
     }
 
     return (
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
+      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full md:w-full sm:w-full lg:mb-0 lg:grid-cols-8 md:grid-cols-8 sm:grid-cols-8 lg:text-left">
         {nodeElements}
       </div>
     )
@@ -445,7 +499,7 @@ export default function Home() {
         </div>
       </div>
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className={buttonClass} onClick={setupNodes}>1. Start 8 rings node</p>
+        <p className={buttonClass} onClick={setupNodes}>1. Start 16 rings node</p>
         <p className={buttonClass} >2. Connect them to a local network</p>
         <p className={buttonClass} onClick={singleProof}> 3. Run a proof job on 1 node</p>
         <p className={buttonClass} onClick={ringsProof}> 4. Run Rings Proof</p>
@@ -453,8 +507,8 @@ export default function Home() {
       <InfoTable />
       <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-2 lg:text-left">
         <MyGraph />
-        <textarea className="bg-gradient-to-b from-zinc-200 dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-2 lg:dark:bg-zinc-800/30"
-          value={nodes ? nodes.map((node: RNode) => node.pk) : ""}></textarea>
+        {/* <textarea className="bg-gradient-to-b from-zinc-200 dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-2 lg:dark:bg-zinc-800/30"
+          value={nodes ? nodes.map((node: RNode) => node.pk) : ""}></textarea> */}
       </div>
     </main>
   );
