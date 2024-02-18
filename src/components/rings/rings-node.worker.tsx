@@ -14,7 +14,7 @@ import init, {
 
 import { PrivateKeyAccount, privateKeyToAccount } from 'viem/accounts'
 import { CallBackEventData, EventData } from './WorkerTypes';
-
+console.log("fucking init")
 let provider: Provider
 let account: PrivateKeyAccount
 let signer: Function

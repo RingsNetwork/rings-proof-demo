@@ -63,7 +63,7 @@ export default function Home() {
   const [nodesData, setNodesData] = useState<any>(null)
 
   // const [logs, setLogs] = useState<string[]>([])
-  
+
   // var originalLog = console.log;
   // console.log = function(msg) {
   //   var logsHistory = logs;
@@ -249,17 +249,17 @@ export default function Home() {
     }
     nodes[0].worker.postMessage(eventData)
 
-    // console.log("gen circuit DONE")
-    // console.log("gen task")
-    // const task = SNARKBehaviour.gen_proof_task_ref(circuits)
-    // console.log("gen task DONE")
-    // console.log("gen proof")
-    // console.log(task)
-    // const proof = SNARKBehaviour.handle_snark_proof_task_ref(task.clone())
-    // console.log("gen proof DONE")
-    // console.log("verify")
-    // let ret = SNARKBehaviour.handle_snark_verify_task_ref(proof.clone(), task.clone())
-    // console.log("verify DONE", ret)
+    console.log("gen circuit DONE")
+    console.log("gen task")
+    const task = SNARKBehaviour.gen_proof_task_ref(circuits)
+    console.log("gen task DONE")
+    console.log("gen proof")
+    console.log(task)
+    const proof = SNARKBehaviour.handle_snark_proof_task_ref(task.clone())
+    console.log("gen proof DONE")
+    console.log("verify")
+    let ret = SNARKBehaviour.handle_snark_verify_task_ref(proof.clone(), task.clone())
+    console.log("verify DONE", ret)
   }
 
   const ringsProof = async () => {
@@ -297,7 +297,7 @@ export default function Home() {
         }
         console.log('to json END')
         const nodeIndex = i % nodes.length
-        
+
         var eventData: EventData = {
           type: 'genProofRequest',
           genProofCircuits: splitCircuits
@@ -381,9 +381,9 @@ export default function Home() {
               }
               // console.log(targetNode!.account.address)
               if (targetNode != null && node != targetNode) {
-                links.push({ 
+                links.push({
                   source: node,
-                  target: targetNode, 
+                  target: targetNode,
                   messaging: (
                     (node.isCommiter && targetNode.isWorker) ||
                     (node.isWorker && targetNode.isCommiter)
@@ -405,11 +405,11 @@ export default function Home() {
         <Graph<RLink, RNode>
           graph={nodesData}
           nodeComponent={({ node }) =>
-            <DefaultNode 
+            <DefaultNode
               onClick={() => console.log(node)}
               fill={node.isCommiter ? "red" : (node.isWorker ? "green" : "cyan")}
             />}
-          linkComponent={({link}) => 
+          linkComponent={({link}) =>
           <line
           x1={link.source.x}
           y1={link.source.y}
