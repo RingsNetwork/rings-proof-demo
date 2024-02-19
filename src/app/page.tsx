@@ -178,18 +178,13 @@ export default function Home() {
              console.log("end send proof task")
            */
           if (i > 0) {
-            console.log('w1')
             const prevItem = newNodes[i - 1];
-
             const cor = new rings_node.CreateOfferRequest({ did: account.address })
             const corResponse: rings_node.CreateOfferResponse = await prevItem.provider.request("createOffer", cor)
-            console.log('w2')
             const aor = new rings_node.AnswerOfferRequest({ offer: corResponse.offer })
             const aorResponse: rings_node.AnswerOfferResponse = await provider.request("answerOffer", aor)
-            console.log('w3')
             const aar = new rings_node.AcceptAnswerRequest({ answer: aorResponse.answer })
             await prevItem.provider.request("acceptAnswer", aar)
-            console.log('w4')
           }
           var initEventData: EventData = {
             type: 'init'
@@ -291,13 +286,11 @@ export default function Home() {
     console.log("gen task")
 
     for (let i = 0; i < 6; i++) {
-      console.log('to json START')
       var splitCircuits: string[] = []
       for (let j = 0; j < 6; j++) {
         const circuitJson = circuits[i+j].to_json();
         splitCircuits.push(circuitJson)
       }
-      console.log('to json END')
       const nodeIndex = i % nodes.length
 
       var eventData: EventData = {
