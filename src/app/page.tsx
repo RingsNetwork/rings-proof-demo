@@ -79,7 +79,7 @@ export default function Home() {
     if (!wasm) {
       const initWasm = async () => {
         const w = await init()
-        // debug(true)
+        debug(true)
         setWasm(w)
       }
 
@@ -283,27 +283,57 @@ export default function Home() {
       input, privateInput, 36
     )
     console.log("gen circuit DONE")
-    console.log("gen task")
+    console.log("gen task START")
 
-    for (let i = 0; i < 6; i++) {
-      var splitCircuits: string[] = []
-      for (let j = 0; j < 6; j++) {
-        const circuitJson = circuits[i+j].to_json();
-        splitCircuits.push(circuitJson)
-      }
-      const nodeIndex = i % nodes.length
+    var nodeIdx = 0;
+    var taskNum = 6;
+    var node = nodes[nodeIdx];
+    console.log(node.snark)
+    const task = await SNARKBehaviour.gen_proof_task_ref(circuits)
+    console.log("gen task DONE")
+    const splitedTask = task.split(taskNum)
+    console.log("split task DONE")
 
-      var eventData: EventData = {
-        type: 'genProofRequest',
-        genProofCircuits: splitCircuits
+    /// get i+1, i+2, i+3 .. i + m
+    var workerIndexs = (function(idx, num, max) {
+      let result = [];
+      for (let n = 1; idx + n < num; n++) {
+	result.push((idx + n) % max);
       }
-      console.log("send task")
-      nodes[nodeIndex].worker.postMessage(eventData)
+      return result;
+    })(nodeIdx, 6, 16)
+
+    var workers = workerIndexs.map((idx) => {
+      return nodes[idx]
+    })
+
+    for (let i = 0; i < workers.length; i++) {
+      const worker = workers[i];
+      const task = splitedTask[i];
+      console.log("distributing tasks")
+      await node.snark.send_proof_task_to(node.provider, task, worker.account.address);
+      console.log("task sent to", worker.account.address)
     }
-
-    var nodesCopy = nodes;
-    nodesCopy[0].isCommiter = true;
-
+    /*
+     *     for (let i = 0; i < 6; i++) {
+     *       var splitCircuits: string[] = []
+     *       for (let j = 0; j < 6; j++) {
+     *         const circuitJson = circuits[i+j].to_json();
+     *         splitCircuits.push(circuitJson)
+     *       }
+     *       const nodeIndex = i % nodes.length
+     *
+     *       var eventData: EventData = {
+     *         type: 'genProofRequest',
+     *         genProofCircuits: splitCircuits
+     *       }
+     *       console.log("send task")
+     *       nodes[nodeIndex].worker.postMessage(eventData)
+     *     }
+     *
+     *     var nodesCopy = nodes;
+     *     nodesCopy[0].isCommiter = true;
+     *  */
     const info: rings_node.INodeInfoResponse = await nodesCopy[0].provider.request("nodeInfo", [])
     var linkedNodesCount = 0
 

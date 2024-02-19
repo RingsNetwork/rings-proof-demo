@@ -126,36 +126,6 @@ async function performIntensiveTask(data:EventData) {
     }
     return returnData
   } else if (data.type === 'genProofRequest') {
-    // const F = SupportedPrimeField.Pallas
-    // console.log("loading r1cs and wasm START")
-    // const snarkTaskBuilder = await new SNARKTaskBuilder(
-    //   "http://localhost:3000/merkle_tree.r1cs",
-    //   "http://localhost:3000/merkle_tree.wasm",
-    //   F
-    // )
-    // console.log("loading r1cs and wasm DONE")
-    // /// Root of merkle tree
-    // console.log("init input START")
-    // const publicInputData = [["leaf", [BigInt(42)]]]
-    // const input = Input.from_array(publicInputData, F)
-    // /// Path of merkle tree, path[0]: leaf, path[1]: position (left or right)
-    // const privateInput = [
-    //   [["path", [BigInt(123456), BigInt(0)]]],
-    //   [["path", [BigInt(33), BigInt(1)]]],
-    //   [["path", [BigInt(3333), BigInt(0)]]],
-    //   [["path", [BigInt(31), BigInt(1)]]],
-    //   [["path", [BigInt(4), BigInt(1)]]],
-    //   [["path", [BigInt(41123), BigInt(0)]]],
-    // ].map((input) => Input.from_array(input, F))
-    // console.log("init input DONE")
-    // console.log(input)
-    // console.log("gen circuit START")
-    // console.log(privateInput)
-    // const circuits = snarkTaskBuilder.gen_circuits(
-    //   input, privateInput, 6
-    // )
-    // console.log(circuits)
-    // const task = SNARKBehaviour.gen_proof_task_ref(circuits)
     const circuitsJsonArray = data.genProofCircuits!
     var circuitsArray : Circuit[] = []
     for (let index = 0; index < circuitsJsonArray.length; index++) {
