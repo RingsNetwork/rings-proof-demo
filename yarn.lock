@@ -272,12 +272,12 @@
   resolved "https://registry.yarnpkg.com/@protobufjs/utf8/-/utf8-1.1.0.tgz#a777360b5b39a1a2e5106f8e858f2fd2d060c570"
   integrity sha512-Vvn3zZrhQZkkBE8LSuW3em98c0FwgO4nxzv6OdSxPKJIEKY2bGbHn+mhGIPerzI4twdxaP8/0+06HBpwf345Lw==
 
-"@ringsnetwork/rings-node@git+file:../rings-node#cb64397":
-  version "0.5.5"
-  resolved "git+file:../rings-node#cb643979d38cf2627af87704d6f8ffa82b082971"
+"@ringsnetwork/rings-node@git+file:../rings-node#e8e088f":
+  version "0.5.6"
+  resolved "git+file:../rings-node#e8e088ffc127af68800c4c173a88b3fddd061bcf"
   dependencies:
     circomlib "^2.0.5"
-    protobufjs "^7.2.5"
+    protobufjs "https://github.com/RingsNetwork/protobuf.js#83686a0"
 
 "@rushstack/eslint-patch@^1.3.3":
   version "1.7.0"
@@ -2173,10 +2173,9 @@ prop-types@^15.6.2, prop-types@^15.8.1:
     object-assign "^4.1.1"
     react-is "^16.13.1"
 
-protobufjs@^7.2.5:
+"protobufjs@https://github.com/RingsNetwork/protobuf.js#83686a0":
   version "7.2.6"
-  resolved "https://registry.yarnpkg.com/protobufjs/-/protobufjs-7.2.6.tgz#4a0ccd79eb292717aacf07530a07e0ed20278215"
-  integrity sha512-dgJaEDDL6x8ASUZ1YqWciTRrdOuYNzoOf27oHNfdyvKqHr5i0FV7FSLU+aIeFjyFgVxrpTOtQUi0BLLBymZaBw==
+  resolved "https://github.com/RingsNetwork/protobuf.js#83686a095273218ab9ca41eaa1b3c16fe1ca45cb"
   dependencies:
     "@protobufjs/aspromise" "^1.1.2"
     "@protobufjs/base64" "^1.1.2"

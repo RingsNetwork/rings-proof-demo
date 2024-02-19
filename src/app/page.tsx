@@ -63,7 +63,7 @@ export default function Home() {
   const [nodesData, setNodesData] = useState<any>(null)
 
   // const [logs, setLogs] = useState<string[]>([])
-  
+
   // var originalLog = console.log;
   // console.log = function(msg) {
   //   var logsHistory = logs;
@@ -139,12 +139,20 @@ export default function Home() {
 
         const listen = async () => {
           const snark = new SNARKBehaviour()
-          const context = new BackendBehaviour(
-            service_message_handler,
-            plain_text_message_handler,
-            extension_message_handler,
-            snark.clone()
-          )
+          const context = new BackendBehaviour()
+          const worker = new Worker(new URL('@/components/rings/rings-node.worker.tsx', import.meta.url))
+          worker.onmessage  = function (event) {
+            const data:CallBackEventData = event.data;
+            console.log(data)
+          }
+	  context.on("ServiceMessage", service_message_handler)
+	  context.on("PlainText", plain_text_message_handler)
+	  context.on("Extension", extension_message_handler)
+	  context.on("SNARKTaskMessage", async function(provider, payload, msg) {
+	    console.log("got snark msg", msg)
+	  })
+
+
           let provider: Provider = await new Provider(
             // ice_servers
             // 'stun://stun.l.google.com:19302',
@@ -183,11 +191,6 @@ export default function Home() {
             const aar = new rings_node.AcceptAnswerRequest({ answer: aorResponse.answer })
             await prevItem.provider.request("acceptAnswer", aar)
             console.log('w4')
-          }
-          const worker = new Worker(new URL('@/components/rings/rings-node.worker.tsx', import.meta.url))
-          worker.onmessage  = function (event) {
-            const data:CallBackEventData = event.data;
-            console.log(data)
           }
           var initEventData: EventData = {
             type: 'init'
@@ -297,7 +300,7 @@ export default function Home() {
         }
         console.log('to json END')
         const nodeIndex = i % nodes.length
-        
+
         var eventData: EventData = {
           type: 'genProofRequest',
           genProofCircuits: splitCircuits
@@ -381,9 +384,9 @@ export default function Home() {
               }
               // console.log(targetNode!.account.address)
               if (targetNode != null && node != targetNode) {
-                links.push({ 
+                links.push({
                   source: node,
-                  target: targetNode, 
+                  target: targetNode,
                   messaging: (
                     (node.isCommiter && targetNode.isWorker) ||
                     (node.isWorker && targetNode.isCommiter)
@@ -405,11 +408,11 @@ export default function Home() {
         <Graph<RLink, RNode>
           graph={nodesData}
           nodeComponent={({ node }) =>
-            <DefaultNode 
+            <DefaultNode
               onClick={() => console.log(node)}
               fill={node.isCommiter ? "red" : (node.isWorker ? "green" : "cyan")}
             />}
-          linkComponent={({link}) => 
+          linkComponent={({link}) =>
           <line
           x1={link.source.x}
           y1={link.source.y}
