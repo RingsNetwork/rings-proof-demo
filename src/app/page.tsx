@@ -63,7 +63,7 @@ export default function Home() {
   const [nodesData, setNodesData] = useState<any>(null)
 
   // const [logs, setLogs] = useState<string[]>([])
-  
+
   // var originalLog = console.log;
   // console.log = function(msg) {
   //   var logsHistory = logs;
@@ -139,12 +139,19 @@ export default function Home() {
 
         const listen = async () => {
           const snark = new SNARKBehaviour()
-          const context = new BackendBehaviour(
-            service_message_handler,
-            plain_text_message_handler,
-            extension_message_handler,
-            snark.clone()
-          )
+          const context = new BackendBehaviour()
+          const worker = new Worker(new URL('@/components/rings/rings-node.worker.tsx', import.meta.url))
+          worker.onmessage  = function (event) {
+            const data:CallBackEventData = event.data;
+            console.log(data)
+          }
+	  context.on("ServiceMessage", service_message_handler)
+	  context.on("PlainText", plain_text_message_handler)
+	  context.on("Extension", extension_message_handler)
+	  context.on("SNARKTaskMessage", async function(provider, payload, msg) {
+	    console.log("got snark msg", msg)
+	  })
+
           let provider: Provider = await new Provider(
             // ice_servers
             // 'stun://stun.l.google.com:19302',
@@ -183,11 +190,6 @@ export default function Home() {
             const aar = new rings_node.AcceptAnswerRequest({ answer: aorResponse.answer })
             await prevItem.provider.request("acceptAnswer", aar)
             console.log('w4')
-          }
-          const worker = new Worker(new URL('@/components/rings/rings-node.worker.tsx', import.meta.url))
-          worker.onmessage  = function (event) {
-            const data:CallBackEventData = event.data;
-            console.log(data)
           }
           var initEventData: EventData = {
             type: 'init'
@@ -263,73 +265,73 @@ export default function Home() {
   }
 
   const ringsProof = async () => {
-      const F = SupportedPrimeField.Vesta
-      console.log("loading r1cs and wasm START")
-      const snarkTaskBuilder = await new SNARKTaskBuilder(
-        "http://localhost:3000/test_sha256.r1cs",
-        "http://localhost:3000/test_sha256.wasm",
-        F
-      )
-      console.log("loading r1cs and wasm DONE")
-      /// Root of merkle tree
-      console.log("init input START")
-      const publicInputData = [["in", new Array(256).fill(BigInt(0))]]
-      const input = Input.from_array(publicInputData, F)
-      /// Path of merkle tree, path[0]: leaf, path[1]: position (left or right)
-      const privateInput = [
-      ].map((input) => Input.from_array(input, F))
-      console.log("init input DONE")
+    const F = SupportedPrimeField.Vesta
+    console.log("loading r1cs and wasm START")
+    const snarkTaskBuilder = await new SNARKTaskBuilder(
+      "http://localhost:3000/test_sha256.r1cs",
+      "http://localhost:3000/test_sha256.wasm",
+      F
+    )
+    console.log("loading r1cs and wasm DONE")
+    /// Root of merkle tree
+    console.log("init input START")
+    const publicInputData = [["in", new Array(256).fill(BigInt(0))]]
+    const input = Input.from_array(publicInputData, F)
+    /// Path of merkle tree, path[0]: leaf, path[1]: position (left or right)
+    const privateInput = [
+    ].map((input) => Input.from_array(input, F))
+    console.log("init input DONE")
 
-      console.log("gen circuit START")
-      console.log(privateInput)
-      const circuits = snarkTaskBuilder.gen_circuits(
-        input, privateInput, 36
-      )
-      console.log("gen circuit DONE")
-      console.log("gen task")
+    console.log("gen circuit START")
+    console.log(privateInput)
+    const circuits = snarkTaskBuilder.gen_circuits(
+      input, privateInput, 36
+    )
+    console.log("gen circuit DONE")
+    console.log("gen task")
 
-      for (let i = 0; i < 6; i++) {
-        console.log('to json START')
-        var splitCircuits: string[] = []
-        for (let j = 0; j < 6; j++) {
-          const circuitJson = circuits[i+j].to_json();
-          splitCircuits.push(circuitJson)
-        }
-        console.log('to json END')
-        const nodeIndex = i % nodes.length
-        
-        var eventData: EventData = {
-          type: 'genProofRequest',
-          genProofCircuits: splitCircuits
-        }
-        console.log("send task")
-        nodes[nodeIndex].worker.postMessage(eventData)
+    for (let i = 0; i < 6; i++) {
+      console.log('to json START')
+      var splitCircuits: string[] = []
+      for (let j = 0; j < 6; j++) {
+        const circuitJson = circuits[i+j].to_json();
+        splitCircuits.push(circuitJson)
       }
+      console.log('to json END')
+      const nodeIndex = i % nodes.length
 
-      var nodesCopy = nodes;
-      nodesCopy[0].isCommiter = true;
+      var eventData: EventData = {
+        type: 'genProofRequest',
+        genProofCircuits: splitCircuits
+      }
+      console.log("send task")
+      nodes[nodeIndex].worker.postMessage(eventData)
+    }
 
-      const info: rings_node.INodeInfoResponse = await nodesCopy[0].provider.request("nodeInfo", [])
-      var linkedNodesCount = 0
+    var nodesCopy = nodes;
+    nodesCopy[0].isCommiter = true;
 
-      info.swarm!.peers!.map((peer) => {
-        if (peer.state == "Connected") {
-          var targetNode: RNode | undefined;
-          for (let j = 0; j < nodesCopy.length; j++) {
-            const inode = nodesCopy[j];
-            if (inode.account.address.toLowerCase() == peer.did!.toLowerCase()) {
-              targetNode = inode;
-              if (linkedNodesCount < 6) {
-                inode.isWorker = true;
-              }
-              linkedNodesCount += 1
-              break
+    const info: rings_node.INodeInfoResponse = await nodesCopy[0].provider.request("nodeInfo", [])
+    var linkedNodesCount = 0
+
+    info.swarm!.peers!.map((peer) => {
+      if (peer.state == "Connected") {
+        var targetNode: RNode | undefined;
+        for (let j = 0; j < nodesCopy.length; j++) {
+          const inode = nodesCopy[j];
+          if (inode.account.address.toLowerCase() == peer.did!.toLowerCase()) {
+            targetNode = inode;
+            if (linkedNodesCount < 6) {
+              inode.isWorker = true;
             }
+            linkedNodesCount += 1
+            break
           }
         }
-      })
+      }
+    })
 
-      setNodes(nodesCopy)
+    setNodes(nodesCopy)
 
     //   for (let i = 0; i < nodes.length; i++) {
     //     let did: string
@@ -381,9 +383,9 @@ export default function Home() {
               }
               // console.log(targetNode!.account.address)
               if (targetNode != null && node != targetNode) {
-                links.push({ 
+                links.push({
                   source: node,
-                  target: targetNode, 
+                  target: targetNode,
                   messaging: (
                     (node.isCommiter && targetNode.isWorker) ||
                     (node.isWorker && targetNode.isCommiter)
@@ -405,11 +407,11 @@ export default function Home() {
         <Graph<RLink, RNode>
           graph={nodesData}
           nodeComponent={({ node }) =>
-            <DefaultNode 
+            <DefaultNode
               onClick={() => console.log(node)}
               fill={node.isCommiter ? "red" : (node.isWorker ? "green" : "cyan")}
             />}
-          linkComponent={({link}) => 
+          linkComponent={({link}) =>
           <line
           x1={link.source.x}
           y1={link.source.y}
