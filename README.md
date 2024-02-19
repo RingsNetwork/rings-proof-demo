@@ -10,6 +10,10 @@ This repo contains the demo of Rings WASM SNARK, which is based on Nova, Rings S
 
 This repo shows detail about how Rings Node and Rings SNARK works.
 
+### Screenshot
+
+![Snark workflow](https://raw.githubusercontent.com/RingsNetwork/asserts/main/imgs/snark_demo.png)
+
 ### TL;DR
 
 Rings SNARK is a SNARK proof system based on NOVA. It automates the process of transferring circuits written in `circom` language to the [bellpepper proof system](https://github.com/lurk-lab/bellpepper) used by Rings SNARK. Additionally, it leverages Nova for folding operations. This is beneficial for breaking down large zkSNARK computations and enabling parallel processing.
